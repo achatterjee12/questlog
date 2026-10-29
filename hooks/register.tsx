@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hero } from '../types'
-import { afterDeed, afterQuest, deedOf, isHeroOf, newHero, summary, xpForLevel } from './game'
+import { afterDeed, afterQuest, deedOf, helpText, isHeroOf, newHero, summary, xpForLevel } from './game'
 
 const PANE = 'questlog'
 const TITLE = 'Questlog'
@@ -128,7 +128,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[status [on|off]]',
+      argumentHint: '[help | status [on|off]]',
     })
     void $.ui.open({ id: PANE, title: TITLE })
 
@@ -137,6 +137,9 @@ export const register: Register = on => {
 
   on('command.run', { command: 'questlog' }, async ($, e) => {
     const [sub, value] = e.args.trim().toLowerCase().split(/\s+/)
+    if (sub === 'help') {
+      return { text: helpText() }
+    }
     if (sub === 'status') {
       if (value !== undefined && value !== 'on' && value !== 'off') {
         return { text: 'Usage: /questlog status [on|off]' }

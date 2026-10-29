@@ -140,3 +140,21 @@ test('/questlog status turns the status line off and on', async ($, on) => {
   expect(lines.at(-1)).toMatch(/10\/100 XP/)
   expect((await run('status maybe')).text).toBe('Usage: /questlog status [on|off]')
 })
+
+test('/questlog help explains XP and classes', async ($, on) => {
+  engine(on)
+  const run = (args: string) =>
+    $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const text = (await run('help')).text ?? ''
+
+  expect(text).toMatch(/Crafting\s+15 XP\s+Edit, Write, NotebookEdit/)
+  expect(text).toMatch(/Lore\s+8 XP\s+WebSearch, WebFetch, MCP tools/)
+  expect(text).toMatch(/Quest\s+25 XP/)
+  expect(text).toMatch(/level 2 at 100, level 3 at 300/)
+  expect(text).toMatch(/Novice until you've done 5 deeds/)
+  expect(text).toMatch(/Summoner\s+most summoning/)
+  // Asking for help earns nothing and leaves the hero as it was.
+  expect((await run('')).text).toBe('Questlog opened.')
+})

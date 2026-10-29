@@ -131,6 +131,58 @@ export function afterQuest(hero: Hero): Hero {
   return withXp({ ...hero, quests: hero.quests + 1 }, XP_PER_QUEST)
 }
 
+const DEED_NAMES: Record<Deed, string> = {
+  craft: 'Crafting',
+  battle: 'Battle',
+  scout: 'Scouting',
+  lore: 'Lore',
+  summon: 'Summoning',
+  misc: 'Anything else',
+}
+
+// The rules as /questlog help prints them, built from the tables above so
+// the two can't disagree.
+export function helpText(): string {
+  const toolsOf = (deed: Deed) => {
+    const tools = Object.keys(DEEDS_BY_TOOL).filter(tool => DEEDS_BY_TOOL[tool] === deed)
+    if (deed === 'lore') {
+      tools.push('MCP tools')
+    }
+
+    return deed === 'misc' ? 'other tools' : tools.join(', ')
+  }
+  const deeds = Object.keys(XP_PER_DEED) as Deed[]
+  const width = Math.max(...deeds.map(deed => DEED_NAMES[deed].length))
+  const row = (name: string, xp: number, how: string) =>
+    `  ${name.padEnd(width)}  ${`${xp} XP`.padStart(5)}  ${how}`
+  const classes = (Object.keys(CLASS_BY_DEED) as Exclude<Deed, 'misc'>[]).map(
+    deed => `  ${CLASS_BY_DEED[deed].padEnd(9)}  most ${DEED_NAMES[deed].toLowerCase()}`,
+  )
+
+  return [
+    'Questlog turns this session into an RPG hero. Every tool Claude uses is',
+    'a deed that earns XP; finished turns are quests.',
+    '',
+    'Earning XP',
+    ...deeds.map(deed => row(DEED_NAMES[deed], XP_PER_DEED[deed], toolsOf(deed))),
+    row('Quest', XP_PER_QUEST, 'each finished turn'),
+    row('Fumble', XP_PER_FUMBLE, 'a tool call that errors, in place of its deed'),
+    '',
+    'Levels',
+    `  Level L to L+1 takes 100 × L XP (level 2 at ${xpForLevel(2)}, level 3 at ${xpForLevel(3)}).`,
+    '',
+    'Classes',
+    `  You're a Novice until you've done ${DEEDS_TO_EARN_CLASS} deeds. Then your class is`,
+    '  whichever deed you have done most, and it can change as you go:',
+    ...classes,
+    '',
+    'Commands',
+    '  /questlog                 open the character sheet',
+    '  /questlog status [on|off] show, hide or toggle the status line',
+    '  /questlog help            show this help',
+  ].join('\n')
+}
+
 export function summary(hero: Hero): string {
   return `⚔ ${hero.name} · Lv ${hero.level} ${hero.heroClass} · ${hero.xp}/${xpForLevel(hero.level + 1)} XP`
 }
