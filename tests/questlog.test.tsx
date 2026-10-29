@@ -94,11 +94,32 @@ test('the sheet is a snapshot that reads as plain text too', async ($, on) => {
   const { text, ui } = await questlog($, '', 'desktop')
   await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
 
-  // Fenced, so a surface that draws the row as markdown keeps the columns.
-  expect(text).toMatch(/^```\n.+\nLevel 1 Novice\n/)
-  expect(text).toMatch(/ 0\/100 XP\n/)
+  // Plain, it still reads as a sheet after the engine's "questlog: " label.
+  expect(text).toMatch(/^⚔ \w+ · Level 1 Novice\n.* 0\/100 XP\n/)
+  expect(text).toMatch(/\nCrafted 0 · Battles 0 · Scouted 0 · Lore 0 · Summons 0\n/)
   // The row drawn earlier keeps what it showed.
   expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 0\/100 XP$/)
+  await ui.unmount()
+})
+
+test('a sheet behind the engine\'s "questlog: " label still draws', async ($, on) => {
+  engine(on)
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  const { text } = await $.command.run({ command: 'questlog', args: '' } as Parameters<
+    typeof $.command.run
+  >[0])
+  const ui = await $.ui.mount({
+    plugin: 'questlog',
+    component: 'CommandOutput',
+    props: { command: 'questlog', args: '', text: `questlog: ${text}`, isErrored: false },
+    surface: 'desktop',
+  })
+
+  expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 1 Novice')
+  expect((await ui.find({ type: 'Text', text: /^Battles/ }))?.text).toMatch(/^Battles\s+1 ▰{10}$/)
+  expect(await ui.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
   await ui.unmount()
 })
 

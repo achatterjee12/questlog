@@ -39,49 +39,34 @@ function bar(xp: number, from: number, to: number, width: number): string {
   return '█'.repeat(filled) + '░'.repeat(width - filled)
 }
 
+// One line per part, with no padding to keep: the engine prints the text
+// after a "questlog: " label, and a surface may collapse runs of spaces.
 export function sheetText(hero: Hero): string {
   const to = xpForLevel(hero.level + 1)
-  const lines = [
-    hero.name,
-    `Level ${hero.level} ${hero.heroClass}`,
-    `${bar(hero.xp, xpForLevel(hero.level), to, BAR_WIDTH)} ${hero.xp}/${to} XP`,
-    '',
-    ...DEEDS.map(([deed, label]) => `${label.padEnd(9)} ${hero.deeds[deed]}`),
-    `${'Quests'.padEnd(9)} ${hero.quests}`,
-    `${'Fumbles'.padEnd(9)} ${hero.fumbles}`,
-  ]
 
-  return ['```', ...lines, '```'].join('\n')
+  return [
+    `⚔ ${hero.name} · Level ${hero.level} ${hero.heroClass}`,
+    `${bar(hero.xp, xpForLevel(hero.level), to, BAR_WIDTH)} ${hero.xp}/${to} XP`,
+    DEEDS.map(([deed, label]) => `${label} ${hero.deeds[deed]}`).join(' · '),
+    `Quests ${hero.quests} · Fumbles ${hero.fumbles}`,
+  ].join('\n')
 }
 
-// The sheet back from sheetText's output, or null for any other output of
-// /questlog (help, status).
+// The sheet back from sheetText's output, wherever it starts in the row's
+// text, or null for any other output of /questlog (help, status).
 export function parseSheet(text: string): Snapshot | null {
-  const lines = text.split('\n').filter(line => line !== '```')
-  const name = lines[0]?.trim()
-  const level = lines[1]?.match(/^Level (\d+) (\w+)$/)
-  const xp = lines[2]?.match(/ (\d+)\/\d+ XP$/)
-  if (!name || level === null || level === undefined || xp === null || xp === undefined) {
+  const head = text.match(/⚔ (.+?) · Level (\d+) (\w+)$/m)
+  const xp = text.match(/ (\d+)\/\d+ XP$/m)
+  if (head === null || xp === null || !(head[3]! in CLASS_COLORS)) {
     return null
   }
 
-  const counts = new Map<string, number>()
-  for (const line of lines.slice(3)) {
-    const row = line.match(/^(\w+)\s+(\d+)$/)
-    if (row !== null) {
-      counts.set(row[1]!, Number(row[2]))
-    }
-  }
-  const count = (label: string) => counts.get(label) ?? 0
-  const heroClass = level[2] as HeroClass
-  if (!(heroClass in CLASS_COLORS)) {
-    return null
-  }
+  const count = (label: string) => Number(text.match(new RegExp(`\\b${label} (\\d+)\\b`))?.[1] ?? 0)
 
   return {
-    name,
-    heroClass,
-    level: Number(level[1]),
+    name: head[1]!,
+    heroClass: head[3] as HeroClass,
+    level: Number(head[2]),
     xp: Number(xp[1]),
     deeds: Object.fromEntries(DEEDS.map(([deed, label]) => [deed, count(label)])) as Snapshot['deeds'],
     quests: count('Quests'),
