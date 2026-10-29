@@ -258,3 +258,24 @@ test('/questlog gallery opens a pane that animates', async ($, on) => {
   expect(await percent(terminal)).toBe('13')
   expect(await percent(desktop)).toBe('13')
 })
+
+test('/questlog rename renames this session\'s hero', async ($, on) => {
+  const lines: (string | undefined)[] = []
+  const store = engine(on, { lines })
+  const run = async (args: string) =>
+    (await $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])).text
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const before = (store.get('hero:s1') as { name: string } | undefined)?.name ?? ''
+
+  // The name keeps its case; the sheet's separator and extra spaces go.
+  expect(await run('rename   Sir  Lance·lot ')).toMatch(/ is now known as Sir Lance lot\.$/)
+  expect((store.get('hero:s1') as { name: string }).name).toBe('Sir Lance lot')
+  expect(lines.at(-1)).toMatch(/^⚔ Sir Lance lot · Lv 1 Novice/)
+  expect(await run('')).toMatch(/^⚔ Sir Lance lot · Level 1 Novice\n/)
+  expect(before).not.toBe('Sir Lance lot')
+
+  expect(await run('rename')).toBe('Usage: /questlog rename <name>')
+  expect(await run('rename ' + 'x'.repeat(25))).toBe("A hero's name can be at most 24 characters.")
+  expect((store.get('hero:s1') as { name: string; xp: number }).xp).toBe(0)
+})

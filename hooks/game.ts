@@ -44,6 +44,14 @@ const NAMES = [
   'Quill', 'Rowan', 'Sable', 'Thane', 'Ulla', 'Vesper', 'Wren', 'Yorick',
 ]
 
+export const MAX_NAME_LENGTH = 24
+
+// A name as /questlog rename was given it, made fit for the sheet: one line,
+// runs of spaces as one, and no '·', which the sheet uses as its separator.
+export function cleanName(raw: string): string {
+  return raw.replace(/[\p{Cc}·]/gu, ' ').replace(/\s+/g, ' ').trim()
+}
+
 export function deedOf(tool: string): Deed {
   if (tool.startsWith('mcp__')) {
     return 'lore'
@@ -184,6 +192,7 @@ export function helpText(): string {
     'Commands',
     '  /questlog                 print the character sheet',
     '  /questlog status [on|off] show, hide or toggle the status line',
+    '  /questlog rename <name>   rename this session\'s hero',
     '  /questlog help            show this help',
     '  /questlog gallery         show off what the pane can draw',
   ].join('\n')

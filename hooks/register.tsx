@@ -3,7 +3,17 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hero } from '../types'
 import { openGallery, registerGallery } from './gallery'
-import { afterDeed, afterQuest, deedOf, helpText, isHeroOf, newHero, summary } from './game'
+import {
+  afterDeed,
+  afterQuest,
+  cleanName,
+  deedOf,
+  helpText,
+  isHeroOf,
+  MAX_NAME_LENGTH,
+  newHero,
+  summary,
+} from './game'
 import { registerSheet, sheetText } from './sheet'
 
 // The live copy of the hero. It lasts only as long as the process,
@@ -102,7 +112,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[help | gallery | status [on|off]]',
+      argumentHint: '[help | rename <name> | status [on|off] | gallery]',
     })
 
     return next(e)
@@ -112,6 +122,20 @@ export const register: Register = on => {
     const [sub, value] = e.args.trim().toLowerCase().split(/\s+/)
     if (sub === 'help') {
       return { text: helpText() }
+    }
+    if (sub === 'rename') {
+      // The name keeps the case it was typed in.
+      const name = cleanName(e.args.trim().slice('rename'.length))
+      if (name === '') {
+        return { text: 'Usage: /questlog rename <name>' }
+      }
+      if ([...name].length > MAX_NAME_LENGTH) {
+        return { text: `A hero's name can be at most ${MAX_NAME_LENGTH} characters.` }
+      }
+      const before = (await loadHero($)).name
+      await gain($, current => ({ ...current, name }))
+
+      return { text: `${before} is now known as ${name}.` }
     }
     if (sub === 'gallery') {
       const opened = await openGallery($)
