@@ -21,6 +21,6 @@ export type Hero = {
 
 declare module 'claude-code' {
   interface PluginState {
-    questlog: { hero: Shaped<Hero | null> }
+    questlog: { hero: Shaped<Hero | null>; galleryTick: number }
   }
 }

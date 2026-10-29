@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 const PANE = {
@@ -156,4 +156,30 @@ test('/questlog help explains XP and classes', async ($, on) => {
   expect(text).toMatch(/Summoner\s+most summoning/)
   // Asking for help earns nothing and leaves the hero as it was.
   expect((await run('')).text).toBe('Questlog opened.')
+})
+
+test('/questlog gallery opens a pane that animates', async ($, on) => {
+  engine(on)
+  const clock = mock.clock(on)
+  const run = (args: string) =>
+    $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
+  const percent = async (ui: { find: typeof terminal.find }) =>
+    (await ui.find({ type: 'Text', text: /%$/ }))?.text.match(/(\d+)%$/)?.[1]
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  expect((await run('gallery')).text).toBe('Gallery opened.')
+
+  const terminal = await $.ui.mount({ ...PANE, requestId: 'questlog-gallery', surface: 'terminal' })
+  const desktop = await $.ui.mount({ ...PANE, requestId: 'questlog-gallery', surface: 'desktop' })
+  for (const heading of ['Colors', 'Styles', 'Gradients', 'Animated', 'Borders', 'Hover', 'Pixels']) {
+    expect(await terminal.find({ type: 'Text', text: heading })).toBeDefined()
+  }
+  expect(await terminal.find({ type: 'Raster' })).toBeDefined()
+  expect(await desktop.find({ type: 'Svg' })).toBeDefined()
+
+  // Ten ticks a second: half a second fills the bar from 0% to 13%.
+  expect(await percent(terminal)).toBe('0')
+  await clock.advance(500)
+  expect(await percent(terminal)).toBe('13')
+  expect(await percent(desktop)).toBe('13')
 })

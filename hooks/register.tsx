@@ -2,6 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hero } from '../types'
+import { openGallery, registerGallery } from './gallery'
 import { afterDeed, afterQuest, deedOf, helpText, isHeroOf, newHero, summary, xpForLevel } from './game'
 
 const PANE = 'questlog'
@@ -120,6 +121,8 @@ function sheetLines(current: Hero, width: number): string[] {
 }
 
 export const register: Register = on => {
+  registerGallery(on)
+
   on('session.start', async ($, e, next) => {
     // A reload or a resume runs this again: it picks up the hero this
     // session already has.
@@ -128,7 +131,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[help | status [on|off]]',
+      argumentHint: '[help | gallery | status [on|off]]',
     })
     void $.ui.open({ id: PANE, title: TITLE })
 
@@ -139,6 +142,15 @@ export const register: Register = on => {
     const [sub, value] = e.args.trim().toLowerCase().split(/\s+/)
     if (sub === 'help') {
       return { text: helpText() }
+    }
+    if (sub === 'gallery') {
+      const opened = await openGallery($)
+
+      return {
+        text: opened.isPlaced
+          ? 'Gallery opened.'
+          : `The gallery needs a pane, and this surface can't show one: ${opened.reason}`,
+      }
     }
     if (sub === 'status') {
       if (value !== undefined && value !== 'on' && value !== 'off') {

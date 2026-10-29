@@ -29,7 +29,8 @@ brings it back. A new conversation, a `/clear` or a forked session starts a
 new hero. The 500 most recently started heroes are kept.
 
 `/questlog` reopens the character sheet, and `/questlog help` prints these
-rules. `/questlog status off` hides the
+rules. `/questlog gallery` opens a showcase of what the pane can draw:
+colors, gradients, animation, borders, hover and pixel art. `/questlog status off` hides the
 status-line summary and `/questlog status on` brings it back; plain
 `/questlog status` toggles it. That setting is remembered across sessions.
 

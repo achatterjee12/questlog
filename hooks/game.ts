@@ -177,6 +177,7 @@ export function helpText(): string {
     '  /questlog                 open the character sheet',
     '  /questlog status [on|off] show, hide or toggle the status line',
     '  /questlog help            show this help',
+    '  /questlog gallery         show off what the pane can draw',
   ].join('\n')
 }
 
