@@ -18,8 +18,6 @@ sheet, and the status line keeps a one-line summary.
 | Quest | each finished turn | 25 |
 | Fumble | a tool call that errors | 2 |
 
-Getting from level L to L+1 takes 100 × L XP.
-
 Your class is whichever deed you have done most, once you've done five:
 **Artificer** (crafting), **Berserker** (battle), **Ranger** (scouting),
 **Sage** (lore) or **Summoner** (summoning). Until then you're a **Novice**.
