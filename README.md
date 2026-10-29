@@ -2,8 +2,9 @@
 
 A Claude Code plugin that turns every session into an RPG character. As
 Claude works, your hero earns XP, levels up and takes on a class based on
-what the session spends its time doing. A small pane shows the character
-sheet, and the status line keeps a one-line summary.
+what the session spends its time doing. `/questlog` prints a colored
+character sheet into the conversation, and the status line keeps a
+one-line summary.
 
 ## How it plays
 
@@ -28,8 +29,9 @@ the session's ID, so closing Claude Code and resuming the conversation later
 brings it back. A new conversation, a `/clear` or a forked session starts a
 new hero. The 500 most recently started heroes are kept.
 
-`/questlog` reopens the character sheet, and `/questlog help` prints these
-rules. `/questlog gallery` opens a showcase of what the pane can draw:
+`/questlog` prints the character sheet as it stands, and `/questlog help`
+prints these rules. `/questlog gallery` opens a pane showing off what a
+plugin can draw:
 colors, gradients, animation, borders, hover and pixel art. `/questlog status off` hides the
 status-line summary and `/questlog status on` brings it back; plain
 `/questlog status` toggles it. That setting is remembered across sessions.
@@ -65,7 +67,8 @@ claude plugin validate .
 claude plugin test .
 ```
 
-The rules live in `hooks/game.ts`, the engine wiring and pane in
+The rules live in `hooks/game.ts`, the character sheet in
+`hooks/sheet.tsx`, the gallery in `hooks/gallery.tsx`, the engine wiring in
 `hooks/register.tsx`, and the per-session state contract in
 `types/index.d.ts`.
 

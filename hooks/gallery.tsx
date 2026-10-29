@@ -3,6 +3,8 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, On, Timer } from 'claude-code'
 
+import { gradientColors, hex, hueRgb, mix } from './colors'
+
 export const GALLERY = 'questlog-gallery'
 const TITLE = 'Questlog gallery'
 // Ticks while the gallery is open; every animation is drawn from it.
@@ -23,34 +25,6 @@ export async function openGallery($: EngineInterface) {
 function stopTicking() {
   ticker?.cancel()
   ticker = undefined
-}
-
-// Hue 0-360 at full saturation to #rrggbb, and to 0xRRGGBB for a Raster.
-function hueRgb(hue: number, lightness = 0.6): number {
-  const h = (((hue % 360) + 360) % 360) / 60
-  const c = (1 - Math.abs(2 * lightness - 1)) * 0.9
-  const x = c * (1 - Math.abs((h % 2) - 1))
-  const [r, g, b] =
-    h < 1 ? [c, x, 0] : h < 2 ? [x, c, 0] : h < 3 ? [0, c, x] : h < 4 ? [0, x, c] : h < 5 ? [x, 0, c] : [c, 0, x]
-  const m = lightness - c / 2
-  const to = (v: number) => Math.round((v + m) * 255)
-
-  return (to(r) << 16) | (to(g) << 8) | to(b)
-}
-
-function hex(rgb: number): string {
-  return `#${rgb.toString(16).padStart(6, '0')}`
-}
-
-function mix(from: number, to: number, t: number): number {
-  const channel = (shift: number) => {
-    const a = (from >> shift) & 0xff
-    const b = (to >> shift) & 0xff
-
-    return Math.round(a + (b - a) * t) << shift
-  }
-
-  return channel(16) | channel(8) | channel(0)
 }
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -123,9 +97,7 @@ export function registerGallery(on: On) {
     const width = Math.max(16, Math.min(48, e.props.bodyColumns - 2))
 
     const gradient = (text: string, from: number, to: number) =>
-      [...text].map((ch, i, all) => (
-        <Text color={hex(mix(from, to, i / Math.max(1, all.length - 1)))}>{ch}</Text>
-      ))
+      gradientColors(text, from, to).map(([ch, color]) => <Text color={color}>{ch}</Text>)
     const rainbow = (text: string, shift: number) =>
       [...text].map((ch, i) => <Text color={hex(hueRgb(i * 18 + shift))}>{ch}</Text>)
     const heading = (text: string) => (

@@ -3,11 +3,10 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hero } from '../types'
 import { openGallery, registerGallery } from './gallery'
-import { afterDeed, afterQuest, deedOf, helpText, isHeroOf, newHero, summary, xpForLevel } from './game'
+import { afterDeed, afterQuest, deedOf, helpText, isHeroOf, newHero, summary } from './game'
+import { registerSheet, sheetText } from './sheet'
 
-const PANE = 'questlog'
-const TITLE = 'Questlog'
-// The live copy the pane draws from. It lasts only as long as the process,
+// The live copy of the hero. It lasts only as long as the process,
 // so every change is also saved to the store under the session's id, which
 // outlives an app restart and comes back when the session is resumed.
 // Change the tag when Hero's fields change: it declines what an earlier
@@ -69,14 +68,6 @@ async function showStatus($: EngineInterface, current: Hero) {
   }
 }
 
-const DEED_LABELS = [
-  ['craft', 'Crafted'],
-  ['battle', 'Battles'],
-  ['scout', 'Scouted'],
-  ['lore', 'Lore'],
-  ['summon', 'Summons'],
-] as const
-
 async function gain($: EngineInterface, change: (current: Hero) => Hero) {
   const loaded = await loadHero($)
   let before: Hero = loaded
@@ -99,29 +90,9 @@ async function gain($: EngineInterface, change: (current: Hero) => Hero) {
   }
 }
 
-function bar(xp: number, from: number, to: number, width: number): string {
-  const filled = Math.round(((xp - from) / (to - from)) * width)
-
-  return '█'.repeat(filled) + '░'.repeat(width - filled)
-}
-
-function sheetLines(current: Hero, width: number): string[] {
-  const from = xpForLevel(current.level)
-  const to = xpForLevel(current.level + 1)
-
-  return [
-    current.name,
-    `Level ${current.level} ${current.heroClass}`,
-    `${bar(current.xp, from, to, width)} ${current.xp}/${to} XP`,
-    '',
-    ...DEED_LABELS.map(([deed, label]) => `${label.padEnd(9)} ${current.deeds[deed]}`),
-    `${'Quests'.padEnd(9)} ${current.quests}`,
-    `${'Fumbles'.padEnd(9)} ${current.fumbles}`,
-  ]
-}
-
 export const register: Register = on => {
   registerGallery(on)
+  registerSheet(on)
 
   on('session.start', async ($, e, next) => {
     // A reload or a resume runs this again: it picks up the hero this
@@ -133,7 +104,6 @@ export const register: Register = on => {
       description: 'Show this session’s character sheet',
       argumentHint: '[help | gallery | status [on|off]]',
     })
-    void $.ui.open({ id: PANE, title: TITLE })
 
     return next(e)
   })
@@ -163,16 +133,7 @@ export const register: Register = on => {
       return { text: `Status line ${isOn ? 'on' : 'off'}.` }
     }
 
-    const current = await loadHero($)
-    const opened = await $.ui.open({ id: PANE, title: TITLE })
-    if (opened.isPlaced) {
-      return { text: 'Questlog opened.' }
-    }
-
-    // This surface can't show the pane right now: print the sheet instead.
-    return {
-      text: [...sheetLines(current, 20), '', `(Pane not shown: ${opened.reason})`].join('\n'),
-    }
+    return { text: sheetText(await loadHero($)) }
   })
 
   on('tool.call', async ($, e, next) => {
@@ -194,42 +155,5 @@ export const register: Register = on => {
     }
 
     return next(e)
-  })
-
-  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    const current = await read($, hero)
-
-    if (current === null) {
-      return <Text dimColor>No hero yet.</Text>
-    }
-
-    const from = xpForLevel(current.level)
-    const to = xpForLevel(current.level + 1)
-    const width = Math.max(5, Math.min(20, e.props.bodyColumns - 14))
-
-    return (
-      <Box flexDirection="column">
-        <Text bold>{current.name}</Text>
-        <Text>
-          Level {current.level} {current.heroClass}
-        </Text>
-        <Text>
-          {bar(current.xp, from, to, width)} {current.xp}/{to} XP
-        </Text>
-        <Text> </Text>
-        {DEED_LABELS.map(([deed, label]) => (
-          <Text dimColor={current.deeds[deed] === 0}>
-            {label.padEnd(9)} {current.deeds[deed]}
-          </Text>
-        ))}
-        <Text>
-          {'Quests'.padEnd(9)} {current.quests}
-        </Text>
-        <Text dimColor={current.fumbles === 0}>
-          {'Fumbles'.padEnd(9)} {current.fumbles}
-        </Text>
-      </Box>
-    )
   })
 }

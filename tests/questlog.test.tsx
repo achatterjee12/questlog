@@ -41,8 +41,31 @@ function engine(
   )
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.call', () => ({ result: {} }))
+  // The engine's own drawing of an output row: its text as is.
+  on('ui.render', { component: 'CommandOutput' }, (_, e) => ({
+    type: 'Text',
+    children: [e.props.text],
+  }))
 
   return store
+}
+
+// Runs /questlog with `args` and draws its output row as the transcript would.
+async function questlog(
+  $: Parameters<Parameters<typeof test>[1]>[0],
+  args: string,
+  surface: 'terminal' | 'desktop',
+) {
+  const ran = await $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
+  const text = ran.text ?? ''
+  const ui = await $.ui.mount({
+    plugin: 'questlog',
+    component: 'CommandOutput',
+    props: { command: 'questlog', args, text, isErrored: false },
+    surface,
+  })
+
+  return { text, ui }
 }
 
 test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
@@ -55,21 +78,50 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
   }
 
   for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({ ...PANE, surface })
+    const { ui } = await questlog($, '', surface)
 
     expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 2 Artificer')
     expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 120\/300 XP$/)
-    expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toBe('Crafted   8')
+    expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toMatch(/^Crafted\s+8 ▰{10}$/)
     await ui.unmount()
   }
 })
 
+test('the sheet is a snapshot that reads as plain text too', async ($, on) => {
+  engine(on)
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const { text, ui } = await questlog($, '', 'desktop')
+  await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
+
+  // Fenced, so a surface that draws the row as markdown keeps the columns.
+  expect(text).toMatch(/^```\n.+\nLevel 1 Novice\n/)
+  expect(text).toMatch(/ 0\/100 XP\n/)
+  // The row drawn earlier keeps what it showed.
+  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 0\/100 XP$/)
+  await ui.unmount()
+})
+
 test('a hero an earlier version stored is declined', async ($, on) => {
-  on('state.get', () => ({ value: { value: { xp: 'lots' }, version: 1 } }))
+  engine(on)
+  // State as an earlier version left it: the hero's slot holds a value of an
+  // old shape until the plugin writes over it.
+  const slots = new Map<string, { value: unknown; version: number }>([
+    ['questlog/hero', { value: { value: { xp: 'lots' }, version: 1 }, version: 1 }],
+  ])
+  on('state.get', (_, e) => ({ value: slots.get(`${e.plugin}/${e.key}`) ?? { value: undefined, version: 0 } }))
+  on('state.set', (_, e) => {
+    const id = `${e.plugin}/${e.key}`
+    const version = (slots.get(id)?.version ?? 0) + 1
+    slots.set(id, { value: e.value, version })
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+    return { value: { isSet: true as const, version } }
+  })
 
-  expect((await ui.find({ type: 'Text' }))?.text).toBe('No hero yet.')
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const { text, ui } = await questlog($, '', 'desktop')
+
+  expect(text).toMatch(/Level 1 Novice/)
   await ui.unmount()
 })
 
@@ -89,8 +141,8 @@ test('a resumed session gets its saved hero back', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'ls' })
 
-  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
-  expect((await ui.find({ type: 'Text', text: /^Dagny/ }))?.text).toBe('Dagny')
+  const { ui } = await questlog($, '', 'desktop')
+  expect((await ui.find({ type: 'Text', text: /Dagny$/ }))?.text).toBe('⚔ Dagny')
   expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 379\/600 XP$/)
   await ui.unmount()
   expect((store.get('hero:s1') as { xp: number }).xp).toBe(379)
@@ -110,14 +162,14 @@ test('a new session id, as after /clear, starts a new hero', async ($, on) => {
   expect(store.get('heroIds')).toEqual(['s1', 's2'])
 })
 
-test('/questlog prints the sheet when the pane cannot be shown', async ($, on) => {
-  engine(on, { isPlaced: false })
+test('other /questlog output is left as the engine draws it', async ($, on) => {
+  engine(on)
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  const ran = await $.command.run({ command: 'questlog', args: '' } as Parameters<typeof $.command.run>[0])
+  const { ui } = await questlog($, 'help', 'terminal')
 
-  expect(ran.text).toMatch(/Level 1 Novice/)
-  expect(ran.text).toMatch(/Pane not shown: too narrow/)
+  expect(await ui.find({ type: 'Text', text: /^⚔/ })).toBeUndefined()
+  await ui.unmount()
 })
 
 test('/questlog status turns the status line off and on', async ($, on) => {
@@ -155,7 +207,7 @@ test('/questlog help explains XP and classes', async ($, on) => {
   expect(text).toMatch(/Novice until you've done 5 deeds/)
   expect(text).toMatch(/Summoner\s+most summoning/)
   // Asking for help earns nothing and leaves the hero as it was.
-  expect((await run('')).text).toBe('Questlog opened.')
+  expect((await run('')).text).toMatch(/Level 1 Novice\n.* 0\/100 XP/)
 })
 
 test('/questlog gallery opens a pane that animates', async ($, on) => {
