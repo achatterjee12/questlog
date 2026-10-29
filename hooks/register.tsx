@@ -47,6 +47,21 @@ function bar(xp: number, from: number, to: number, width: number): string {
   return '█'.repeat(filled) + '░'.repeat(width - filled)
 }
 
+function sheetLines(current: Hero, width: number): string[] {
+  const from = xpForLevel(current.level)
+  const to = xpForLevel(current.level + 1)
+
+  return [
+    current.name,
+    `Level ${current.level} ${current.heroClass}`,
+    `${bar(current.xp, from, to, width)} ${current.xp}/${to} XP`,
+    '',
+    ...DEED_LABELS.map(([deed, label]) => `${label.padEnd(9)} ${current.deeds[deed]}`),
+    `${'Quests'.padEnd(9)} ${current.quests}`,
+    `${'Fumbles'.padEnd(9)} ${current.fumbles}`,
+  ]
+}
+
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     // A reload runs this again: keep the hero this session already has.
@@ -69,9 +84,16 @@ export const register: Register = on => {
   })
 
   on('command.run', { command: 'questlog' }, async $ => {
-    await $.ui.open({ id: PANE, title: TITLE })
+    const opened = await $.ui.open({ id: PANE, title: TITLE })
+    if (opened.isPlaced) {
+      return { text: 'Questlog opened.' }
+    }
 
-    return { text: 'Questlog opened.' }
+    // This surface can't show the pane right now: print the sheet instead.
+    const current = await read($, hero)
+    const sheet = current === null ? ['No hero yet.'] : sheetLines(current, 20)
+
+    return { text: [...sheet, '', `(Pane not shown: ${opened.reason})`].join('\n') }
   })
 
   on('tool.call', async ($, e, next) => {

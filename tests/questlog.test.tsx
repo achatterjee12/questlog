@@ -44,3 +44,15 @@ test('a hero an earlier version stored is declined', async ($, on) => {
   expect((await ui.find({ type: 'Text' }))?.text).toBe('No hero yet.')
   await ui.unmount()
 })
+
+test('/questlog prints the sheet when the pane cannot be shown', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'questlog' } }))
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'too narrow' } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const ran = await $.command.run({ command: 'questlog', args: '' } as Parameters<typeof $.command.run>[0])
+
+  expect(ran.text).toMatch(/Level 1 Novice/)
+  expect(ran.text).toMatch(/Pane not shown: too narrow/)
+})
