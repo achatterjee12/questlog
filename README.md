@@ -27,7 +27,9 @@ The class can change as the session goes on.
 
 Each session gets its own hero. Nothing carries over between sessions.
 
-`/questlog` reopens the character sheet.
+`/questlog` reopens the character sheet. `/questlog status off` hides the
+status-line summary and `/questlog status on` brings it back; plain
+`/questlog status` toggles it. That setting is remembered across sessions.
 
 ## Install
 

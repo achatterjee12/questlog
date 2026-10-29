@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = {
   plugin: 'questlog',
@@ -55,4 +55,33 @@ test('/questlog prints the sheet when the pane cannot be shown', async ($, on) =
 
   expect(ran.text).toMatch(/Level 1 Novice/)
   expect(ran.text).toMatch(/Pane not shown: too narrow/)
+})
+
+test('/questlog status turns the status line off and on', async ($, on) => {
+  mock.store(on)
+  const lines: (string | undefined)[] = []
+  on('ui.status', (_, e) => {
+    lines.push(e.text)
+    return { value: undefined }
+  })
+  on('command.register', () => ({ value: { command: 'questlog' } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('tool.call', () => ({ result: {} }))
+  const run = (args: string) =>
+    $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  expect(lines.at(-1)).toMatch(/Lv 1 Novice/)
+
+  expect((await run('status off')).text).toBe('Status line off.')
+  expect(lines.at(-1)).toBeUndefined()
+  const count = lines.length
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(lines.length).toBe(count)
+
+  // With no value, it toggles.
+  expect((await run('status')).text).toBe('Status line on.')
+  expect(lines.at(-1)).toMatch(/10\/100 XP/)
+  expect((await run('status maybe')).text).toBe('Usage: /questlog status [on|off]')
 })

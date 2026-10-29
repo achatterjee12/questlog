@@ -12,6 +12,19 @@ const hero = atom({ plugin: 'questlog', key: 'hero' } as const, null, {
   shape: 'hero-1',
 })
 
+// A display preference, so it is kept across sessions, unlike the hero.
+const STATUS_KEY = 'statusLine'
+
+async function isStatusOn($: EngineInterface): Promise<boolean> {
+  return (await $.store.get(STATUS_KEY)) !== false
+}
+
+async function showStatus($: EngineInterface, current: Hero) {
+  if (await isStatusOn($)) {
+    $.ui.status(summary(current))
+  }
+}
+
 const DEED_LABELS = [
   ['craft', 'Crafted'],
   ['battle', 'Battles'],
@@ -31,7 +44,7 @@ async function gain($: EngineInterface, change: (current: Hero) => Hero) {
     return
   }
 
-  $.ui.status(summary(after))
+  await showStatus($, after)
   const previous = before as Hero | null
   if (previous !== null && after.level > previous.level) {
     $.ui.toast(`🎉 ${after.name} reached level ${after.level}!`)
@@ -71,19 +84,37 @@ export const register: Register = on => {
     }
     const current = await read($, hero)
     if (current !== null) {
-      $.ui.status(summary(current))
+      await showStatus($, current)
     }
 
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
+      argumentHint: '[status [on|off]]',
     })
     void $.ui.open({ id: PANE, title: TITLE })
 
     return next(e)
   })
 
-  on('command.run', { command: 'questlog' }, async $ => {
+  on('command.run', { command: 'questlog' }, async ($, e) => {
+    const [sub, value] = e.args.trim().toLowerCase().split(/\s+/)
+    if (sub === 'status') {
+      if (value !== undefined && value !== 'on' && value !== 'off') {
+        return { text: 'Usage: /questlog status [on|off]' }
+      }
+      const isOn = value === undefined ? !(await isStatusOn($)) : value === 'on'
+      await $.store.set(STATUS_KEY, isOn)
+      const current = await read($, hero)
+      if (!isOn) {
+        $.ui.status(undefined)
+      } else if (current !== null) {
+        $.ui.status(summary(current))
+      }
+
+      return { text: `Status line ${isOn ? 'on' : 'off'}.` }
+    }
+
     const opened = await $.ui.open({ id: PANE, title: TITLE })
     if (opened.isPlaced) {
       return { text: 'Questlog opened.' }
