@@ -1,0 +1,6 @@
+{
+  "name": "questlog",
+  "description": "Questlog: your Claude Code sessions as RPG characters",
+  "owner": { "name": "achatterjee12" },
+  "plugins": [{ "name": "questlog", "source": "./" }]
+}
