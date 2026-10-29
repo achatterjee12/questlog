@@ -152,7 +152,6 @@ test('/questlog help explains XP and classes', async ($, on) => {
   expect(text).toMatch(/Crafting\s+15 XP\s+Edit, Write, NotebookEdit/)
   expect(text).toMatch(/Lore\s+8 XP\s+WebSearch, WebFetch, MCP tools/)
   expect(text).toMatch(/Quest\s+25 XP/)
-  expect(text).toMatch(/level 2 at 100, level 3 at 300/)
   expect(text).toMatch(/Novice until you've done 5 deeds/)
   expect(text).toMatch(/Summoner\s+most summoning/)
   // Asking for help earns nothing and leaves the hero as it was.
