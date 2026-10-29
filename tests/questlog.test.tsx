@@ -1,4 +1,5 @@
-import { expect, mock, test } from 'claude-code/testing'
+import { expect, test } from 'claude-code/testing'
+import type { On } from 'claude-code'
 
 const PANE = {
   plugin: 'questlog',
@@ -14,11 +15,38 @@ const PANE = {
   },
 } as const
 
-test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
+// Stands in for the engine beneath the plugin. `ids` is the session id
+// `$.session.id()` answers, read on each call so a test can move it; the
+// store is a map the test reads back, and `lines` collects status lines.
+function engine(
+  on: On,
+  {
+    ids = { current: 's1' },
+    isPlaced = true,
+    saved = {} as Record<string, unknown>,
+    lines = [] as (string | undefined)[],
+  } = {},
+) {
+  const store = new Map(Object.entries(saved))
+  on('store.get', (_, e) => ({ value: store.get(e.key) }))
+  on('store.set', (_, e) => (store.set(e.key, e.value), { value: undefined }))
+  on('store.delete', (_, e) => (store.delete(e.key), { value: undefined }))
+  on('ui.status', (_, e) => (lines.push(e.text), { value: undefined }))
+  on('session.id', () => ({ value: ids.current }))
   on('command.register', () => ({ value: { command: 'questlog' } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('ui.open', () =>
+    isPlaced
+      ? { value: { isPlaced: true } }
+      : { value: { isPlaced: false, reason: 'too narrow' } },
+  )
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.call', () => ({ result: {} }))
+
+  return store
+}
+
+test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
+  engine(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   // 8 edits at 15 XP each: 120 XP, past level 2's 100.
@@ -45,10 +73,45 @@ test('a hero an earlier version stored is declined', async ($, on) => {
   await ui.unmount()
 })
 
+test('a resumed session gets its saved hero back', async ($, on) => {
+  const saved = {
+    sessionId: 's1',
+    name: 'Dagny',
+    heroClass: 'Berserker',
+    level: 3,
+    xp: 369,
+    deeds: { craft: 0, battle: 10, scout: 0, lore: 2, summon: 0, misc: 1 },
+    quests: 10,
+    fumbles: 0,
+  }
+  const store = engine(on, { saved: { 'hero:s1': saved } })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
+  expect((await ui.find({ type: 'Text', text: /^Dagny/ }))?.text).toBe('Dagny')
+  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 379\/600 XP$/)
+  await ui.unmount()
+  expect((store.get('hero:s1') as { xp: number }).xp).toBe(379)
+})
+
+test('a new session id, as after /clear, starts a new hero', async ($, on) => {
+  const ids = { current: 's1' }
+  const store = engine(on, { ids })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  ids.current = 's2'
+  await $.tool.call({ tool: 'Read', file_path: '/a' })
+
+  expect((store.get('hero:s1') as { xp: number }).xp).toBe(10)
+  expect((store.get('hero:s2') as { xp: number }).xp).toBe(5)
+  expect(store.get('heroIds')).toEqual(['s1', 's2'])
+})
+
 test('/questlog prints the sheet when the pane cannot be shown', async ($, on) => {
-  on('command.register', () => ({ value: { command: 'questlog' } }))
-  on('ui.open', () => ({ value: { isPlaced: false, reason: 'too narrow' } }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  engine(on, { isPlaced: false })
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
   const ran = await $.command.run({ command: 'questlog', args: '' } as Parameters<typeof $.command.run>[0])
@@ -58,16 +121,8 @@ test('/questlog prints the sheet when the pane cannot be shown', async ($, on) =
 })
 
 test('/questlog status turns the status line off and on', async ($, on) => {
-  mock.store(on)
   const lines: (string | undefined)[] = []
-  on('ui.status', (_, e) => {
-    lines.push(e.text)
-    return { value: undefined }
-  })
-  on('command.register', () => ({ value: { command: 'questlog' } }))
-  on('ui.open', () => ({ value: { isPlaced: true } }))
-  on('session.start', (_, e) => ({ cwd: e.cwd }))
-  on('tool.call', () => ({ result: {} }))
+  engine(on, { lines })
   const run = (args: string) =>
     $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
 

@@ -9,6 +9,7 @@ export type HeroClass =
   | 'Summoner'
 
 export type Hero = {
+  sessionId: string
   name: string
   heroClass: HeroClass
   level: number

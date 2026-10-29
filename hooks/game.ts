@@ -82,8 +82,9 @@ export function classFor(deeds: Hero['deeds']): HeroClass {
   return top === undefined ? 'Novice' : CLASS_BY_DEED[top.deed]
 }
 
-export function newHero(seed: number): Hero {
+export function newHero(sessionId: string, seed: number): Hero {
   return {
+    sessionId,
     name: NAMES[seed % NAMES.length] ?? 'Hero',
     heroClass: 'Novice',
     level: 1,
@@ -92,6 +93,22 @@ export function newHero(seed: number): Hero {
     quests: 0,
     fumbles: 0,
   }
+}
+
+// What the store holds is trusted only if it looks like a hero of this session.
+export function isHeroOf(value: unknown, sessionId: string): value is Hero {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const maybe = value as Partial<Hero>
+
+  return (
+    maybe.sessionId === sessionId &&
+    typeof maybe.name === 'string' &&
+    typeof maybe.xp === 'number' &&
+    typeof maybe.deeds === 'object' &&
+    maybe.deeds !== null
+  )
 }
 
 function withXp(hero: Hero, xp: number): Hero {

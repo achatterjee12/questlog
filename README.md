@@ -25,7 +25,10 @@ Your class is whichever deed you have done most, once you've done five:
 **Sage** (lore) or **Summoner** (summoning). Until then you're a **Novice**.
 The class can change as the session goes on.
 
-Each session gets its own hero. Nothing carries over between sessions.
+Each session (one conversation) gets its own hero. The hero is saved under
+the session's ID, so closing Claude Code and resuming the conversation later
+brings it back. A new conversation, a `/clear` or a forked session starts a
+new hero. The 500 most recently started heroes are kept.
 
 `/questlog` reopens the character sheet. `/questlog status off` hides the
 status-line summary and `/questlog status on` brings it back; plain

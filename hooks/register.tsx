@@ -2,18 +2,61 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hero } from '../types'
-import { afterDeed, afterQuest, deedOf, newHero, summary, xpForLevel } from './game'
+import { afterDeed, afterQuest, deedOf, isHeroOf, newHero, summary, xpForLevel } from './game'
 
 const PANE = 'questlog'
 const TITLE = 'Questlog'
+// The live copy the pane draws from. It lasts only as long as the process,
+// so every change is also saved to the store under the session's id, which
+// outlives an app restart and comes back when the session is resumed.
 // Change the tag when Hero's fields change: it declines what an earlier
 // version stored, which outlives a reload.
 const hero = atom({ plugin: 'questlog', key: 'hero' } as const, null, {
-  shape: 'hero-1',
+  shape: 'hero-2',
 })
 
-// A display preference, so it is kept across sessions, unlike the hero.
 const STATUS_KEY = 'statusLine'
+const HERO_IDS_KEY = 'heroIds'
+// Saved heroes beyond this many are dropped, oldest first.
+const MAX_SAVED_HEROES = 500
+
+function heroKey(sessionId: string): string {
+  return `hero:${sessionId}`
+}
+
+// The hero of the session running now: the live copy, else the saved one,
+// else a new one. Checking the id also catches a /clear, which moves the
+// process to a new session without a session.start.
+async function loadHero($: EngineInterface): Promise<Hero> {
+  const sessionId = await $.session.id()
+  const live = await read($, hero)
+  if (live !== null && live.sessionId === sessionId) {
+    return live
+  }
+
+  const saved = await $.store.get(heroKey(sessionId))
+  const [seed] = crypto.getRandomValues(new Uint32Array(1))
+  const loaded = isHeroOf(saved, sessionId) ? saved : newHero(sessionId, seed ?? 0)
+
+  return update($, hero, current =>
+    current !== null && current.sessionId === sessionId ? current : loaded,
+  ).then(value => value ?? loaded)
+}
+
+async function saveHero($: EngineInterface, current: Hero) {
+  await $.store.set(heroKey(current.sessionId), current)
+
+  const ids = await $.store.get(HERO_IDS_KEY)
+  const known = Array.isArray(ids) ? ids.filter(id => typeof id === 'string') : []
+  if (known.includes(current.sessionId)) {
+    return
+  }
+  const all = [...known, current.sessionId]
+  for (const old of all.slice(0, Math.max(0, all.length - MAX_SAVED_HEROES))) {
+    await $.store.delete(heroKey(old))
+  }
+  await $.store.set(HERO_IDS_KEY, all.slice(-MAX_SAVED_HEROES))
+}
 
 async function isStatusOn($: EngineInterface): Promise<boolean> {
   return (await $.store.get(STATUS_KEY)) !== false
@@ -34,22 +77,23 @@ const DEED_LABELS = [
 ] as const
 
 async function gain($: EngineInterface, change: (current: Hero) => Hero) {
-  let before: Hero | null = null
+  const loaded = await loadHero($)
+  let before: Hero = loaded
   const after = await update($, hero, current => {
-    before = current
-    return change(current ?? newHero(0))
+    before = current ?? loaded
+    return change(before)
   })
 
   if (after === null) {
     return
   }
 
+  await saveHero($, after)
   await showStatus($, after)
-  const previous = before as Hero | null
-  if (previous !== null && after.level > previous.level) {
+  if (after.level > before.level) {
     $.ui.toast(`🎉 ${after.name} reached level ${after.level}!`)
   }
-  if (previous !== null && after.heroClass !== previous.heroClass) {
+  if (after.heroClass !== before.heroClass) {
     $.ui.toast(`${after.name} is now a ${after.heroClass}`)
   }
 }
@@ -77,15 +121,9 @@ function sheetLines(current: Hero, width: number): string[] {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    // A reload runs this again: keep the hero this session already has.
-    if ((await read($, hero)) === null) {
-      const [seed] = crypto.getRandomValues(new Uint32Array(1))
-      await update($, hero, current => current ?? newHero(seed ?? 0))
-    }
-    const current = await read($, hero)
-    if (current !== null) {
-      await showStatus($, current)
-    }
+    // A reload or a resume runs this again: it picks up the hero this
+    // session already has.
+    await showStatus($, await loadHero($))
 
     await $.command.register({
       name: 'questlog',
@@ -105,26 +143,21 @@ export const register: Register = on => {
       }
       const isOn = value === undefined ? !(await isStatusOn($)) : value === 'on'
       await $.store.set(STATUS_KEY, isOn)
-      const current = await read($, hero)
-      if (!isOn) {
-        $.ui.status(undefined)
-      } else if (current !== null) {
-        $.ui.status(summary(current))
-      }
+      $.ui.status(isOn ? summary(await loadHero($)) : undefined)
 
       return { text: `Status line ${isOn ? 'on' : 'off'}.` }
     }
 
+    const current = await loadHero($)
     const opened = await $.ui.open({ id: PANE, title: TITLE })
     if (opened.isPlaced) {
       return { text: 'Questlog opened.' }
     }
 
     // This surface can't show the pane right now: print the sheet instead.
-    const current = await read($, hero)
-    const sheet = current === null ? ['No hero yet.'] : sheetLines(current, 20)
-
-    return { text: [...sheet, '', `(Pane not shown: ${opened.reason})`].join('\n') }
+    return {
+      text: [...sheetLines(current, 20), '', `(Pane not shown: ${opened.reason})`].join('\n'),
+    }
   })
 
   on('tool.call', async ($, e, next) => {
