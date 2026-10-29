@@ -189,9 +189,9 @@ test('other /questlog output is left as the engine draws it', async ($, on) => {
   engine(on)
 
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  const { ui } = await questlog($, 'help', 'terminal')
+  const { ui } = await questlog($, 'status off', 'terminal')
 
-  expect(await ui.find({ type: 'Text', text: /^⚔/ })).toBeUndefined()
+  expect((await ui.find({ type: 'Text' }))?.text).toBe('Status line off.')
   await ui.unmount()
 })
 
@@ -224,11 +224,33 @@ test('/questlog help explains XP and classes', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   const text = (await run('help')).text ?? ''
 
-  expect(text).toMatch(/Crafting\s+15 XP\s+Edit, Write, NotebookEdit/)
-  expect(text).toMatch(/Lore\s+8 XP\s+WebSearch, WebFetch, MCP tools/)
-  expect(text).toMatch(/Quest\s+25 XP/)
+  // Plain, each sentence is one line and cells are joined, not padded.
+  expect(text).toMatch(/^Questlog turns .* Every tool Claude uses is a deed that earns XP; finished turns are quests\.\n/)
+  expect(text).toMatch(/\nCrafting · 15 XP · Edit, Write, NotebookEdit\n/)
+  expect(text).toMatch(/\nLore · 8 XP · WebSearch, WebFetch, MCP tools\n/)
+  expect(text).toMatch(/\nQuest · 25 XP · each finished turn\n/)
   expect(text).toMatch(/Novice until you've done 5 deeds/)
-  expect(text).toMatch(/Summoner\s+most summoning/)
+  expect(text).toMatch(/\nSummoner · most summoning\n/)
+  expect(text).not.toMatch(/  /)
+
+  // Drawn, the headings are bold and each cell sits in its own column.
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const ui = await $.ui.mount({
+      plugin: 'questlog',
+      component: 'CommandOutput',
+      props: { command: 'questlog', args: 'help', text: `questlog: ${text}`, isErrored: false },
+      surface,
+    })
+    for (const heading of ['Earning XP', 'Classes', 'Commands']) {
+      expect((await ui.find({ type: 'Text', text: heading }))?.props?.weight).toBe('bold')
+    }
+    expect(await ui.find({ type: 'Text', text: 'Crafting' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '15 XP' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: '/questlog rename <name>' })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
+    await ui.unmount()
+  }
+
   // Asking for help earns nothing and leaves the hero as it was.
   expect((await run('')).text).toMatch(/Level 1 Novice\n.* 0\/100 XP/)
 })

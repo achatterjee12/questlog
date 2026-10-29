@@ -14,6 +14,7 @@ import {
   newHero,
   summary,
 } from './game'
+import { registerHelp } from './help'
 import { registerSheet, sheetText } from './sheet'
 
 // The live copy of the hero. It lasts only as long as the process,
@@ -103,6 +104,7 @@ async function gain($: EngineInterface, change: (current: Hero) => Hero) {
 export const register: Register = on => {
   registerGallery(on)
   registerSheet(on)
+  registerHelp(on)
 
   on('session.start', async ($, e, next) => {
     // A reload or a resume runs this again: it picks up the hero this
