@@ -58,6 +58,14 @@ export function xpForLevel(level: number): number {
   return 50 * level * (level - 1)
 }
 
+// How far into the current level a hero is: XP gained since the last level
+// up, and the XP that level takes in all.
+export function levelProgress(hero: Pick<Hero, 'xp' | 'level'>): { gained: number; needed: number } {
+  const from = xpForLevel(hero.level)
+
+  return { gained: hero.xp - from, needed: xpForLevel(hero.level + 1) - from }
+}
+
 export function levelFor(xp: number): number {
   let level = 1
   while (xpForLevel(level + 1) <= xp) {
@@ -182,5 +190,7 @@ export function helpText(): string {
 }
 
 export function summary(hero: Hero): string {
-  return `⚔ ${hero.name} · Lv ${hero.level} ${hero.heroClass} · ${hero.xp}/${xpForLevel(hero.level + 1)} XP`
+  const { gained, needed } = levelProgress(hero)
+
+  return `⚔ ${hero.name} · Lv ${hero.level} ${hero.heroClass} · ${gained}/${needed} XP`
 }

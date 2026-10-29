@@ -72,7 +72,7 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
   engine(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  // 8 edits at 15 XP each: 120 XP, past level 2's 100.
+  // 8 edits at 15 XP each: 120 XP, 20 past level 2's 100 of the 200 it takes.
   for (let i = 0; i < 8; i += 1) {
     await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
   }
@@ -81,7 +81,7 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
     const { ui } = await questlog($, '', surface)
 
     expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 2 Artificer')
-    expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 120\/300 XP$/)
+    expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/^█{2}░{18} 20\/200 XP$/)
     expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toMatch(/^Crafted\s+8 ▰{10}$/)
     await ui.unmount()
   }
@@ -162,9 +162,11 @@ test('a resumed session gets its saved hero back', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'ls' })
 
-  const { ui } = await questlog($, '', 'desktop')
+  const { text, ui } = await questlog($, '', 'desktop')
+  expect(text).toMatch(/\n█{5}░{15} 79\/300 XP\n/)
   expect((await ui.find({ type: 'Text', text: /Dagny$/ }))?.text).toBe('⚔ Dagny')
-  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 379\/600 XP$/)
+  // 379 XP is 79 into level 3, which runs from 300 to 600.
+  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/^█{5}░{15} 79\/300 XP$/)
   await ui.unmount()
   expect((store.get('hero:s1') as { xp: number }).xp).toBe(379)
 })

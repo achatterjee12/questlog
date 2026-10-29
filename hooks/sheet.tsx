@@ -6,7 +6,7 @@ import type { On } from 'claude-code'
 
 import type { Deed, Hero, HeroClass } from '../types'
 import { gradientColors, hex } from './colors'
-import { xpForLevel } from './game'
+import { levelProgress } from './game'
 
 const BAR_WIDTH = 20
 const DEED_BAR_WIDTH = 10
@@ -28,25 +28,27 @@ const CLASS_COLORS: Record<HeroClass, number> = {
   Summoner: 0xb197fc,
 }
 
-// What the sheet shows, and all the drawing needs.
-type Snapshot = Pick<Hero, 'name' | 'heroClass' | 'level' | 'xp' | 'quests' | 'fumbles'> & {
+// What the sheet shows, and all the drawing needs. XP counts within the
+// current level: gained since the last level up, of what this level takes.
+type Snapshot = Pick<Hero, 'name' | 'heroClass' | 'level' | 'quests' | 'fumbles'> & {
+  gained: number
+  needed: number
   deeds: Record<Exclude<Deed, 'misc'>, number>
 }
 
-function bar(xp: number, from: number, to: number, width: number): string {
-  const filled = Math.round(((xp - from) / (to - from)) * width)
-
-  return '█'.repeat(filled) + '░'.repeat(width - filled)
+function filledCells(gained: number, needed: number): number {
+  return Math.max(0, Math.min(BAR_WIDTH, Math.round((gained / needed) * BAR_WIDTH)))
 }
 
 // One line per part, with no padding to keep: the engine prints the text
 // after a "questlog: " label, and a surface may collapse runs of spaces.
 export function sheetText(hero: Hero): string {
-  const to = xpForLevel(hero.level + 1)
+  const { gained, needed } = levelProgress(hero)
+  const filled = filledCells(gained, needed)
 
   return [
     `⚔ ${hero.name} · Level ${hero.level} ${hero.heroClass}`,
-    `${bar(hero.xp, xpForLevel(hero.level), to, BAR_WIDTH)} ${hero.xp}/${to} XP`,
+    `${'█'.repeat(filled)}${'░'.repeat(BAR_WIDTH - filled)} ${gained}/${needed} XP`,
     DEEDS.map(([deed, label]) => `${label} ${hero.deeds[deed]}`).join(' · '),
     `Quests ${hero.quests} · Fumbles ${hero.fumbles}`,
   ].join('\n')
@@ -56,7 +58,7 @@ export function sheetText(hero: Hero): string {
 // text, or null for any other output of /questlog (help, status).
 export function parseSheet(text: string): Snapshot | null {
   const head = text.match(/⚔ (.+?) · Level (\d+) (\w+)$/m)
-  const xp = text.match(/ (\d+)\/\d+ XP$/m)
+  const xp = text.match(/ (\d+)\/(\d+) XP$/m)
   if (head === null || xp === null || !(head[3]! in CLASS_COLORS)) {
     return null
   }
@@ -67,7 +69,8 @@ export function parseSheet(text: string): Snapshot | null {
     name: head[1]!,
     heroClass: head[3] as HeroClass,
     level: Number(head[2]),
-    xp: Number(xp[1]),
+    gained: Number(xp[1]),
+    needed: Number(xp[2]),
     deeds: Object.fromEntries(DEEDS.map(([deed, label]) => [deed, count(label)])) as Snapshot['deeds'],
     quests: count('Quests'),
     fumbles: count('Fumbles'),
@@ -83,9 +86,7 @@ export function registerSheet(on: On) {
 
     const { Box, Text } = $.ui.resolve(e)
     const classColor = CLASS_COLORS[sheet.heroClass]
-    const from = xpForLevel(sheet.level)
-    const to = xpForLevel(sheet.level + 1)
-    const filled = Math.round(((sheet.xp - from) / (to - from)) * BAR_WIDTH)
+    const filled = filledCells(sheet.gained, sheet.needed)
     const most = Math.max(1, ...DEEDS.map(([deed]) => sheet.deeds[deed]))
     const gradient = (text: string, start: number, end: number) =>
       gradientColors(text, start, end).map(([ch, color]) => <Text color={color}>{ch}</Text>)
@@ -107,7 +108,7 @@ export function registerSheet(on: On) {
         </Text>
         <Text>
           {gradient('█'.repeat(filled), 0xffd43b, 0xff922b)}
-          <Text dimColor>{'░'.repeat(BAR_WIDTH - filled)}</Text> {sheet.xp}/{to} XP
+          <Text dimColor>{'░'.repeat(BAR_WIDTH - filled)}</Text> {sheet.gained}/{sheet.needed} XP
         </Text>
         <Text> </Text>
         {DEEDS.map(([deed, label, color]) => {
