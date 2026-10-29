@@ -3,5 +3,6 @@
   "version": "0.1.0",
   "description": "Turns each Claude Code session into an RPG character that earns XP, levels up and picks a class from how you play",
   "author": { "name": "achatterjee12" },
+  "license": "MIT",
   "types": "./types/index.d.ts"
 }
