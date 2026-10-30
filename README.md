@@ -34,6 +34,7 @@ new hero. The 500 most recently started heroes are kept.
 | `/questlog help` | Explain how it plays, without giving away any numbers |
 | `/questlog codex` | Reveal every number: XP per deed, class targets, leveling |
 | `/questlog rename <name>` | Give this session's hero a new name, up to 24 characters |
+| `/questlog reset` | Retire this session's hero and start over with a new one at level 1 |
 | `/questlog status [on\|off]` | Hide, show or toggle the status-line summary; remembered across sessions |
 
 ## The codex

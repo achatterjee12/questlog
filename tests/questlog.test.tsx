@@ -461,3 +461,34 @@ test('the newest sheet fills its bar from what the last one showed', async ($, o
   const old = await sheetRow('⚔ Ulla · Level 1 Adventurer\n█████░░░░░░░░░░░░░░░ 25/100 XP\nQuests 1 · Fumbles 0', 'r3')
   expect(await xpLine(old)).toBe('25/100 XP')
 })
+
+test('/questlog reset starts this session over with a new hero', async ($, on) => {
+  const lines: (string | undefined)[] = []
+  const store = engine(on, { lines })
+  on('ui.toast', () => ({ value: undefined }))
+  const run = async (args: string) =>
+    (await $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])).text ?? ''
+  const hero = () =>
+    store.get('hero:s1') as { name: string; level: number; xp: number; heroClass: string; deeds: Record<string, number>; quests: number }
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  for (let i = 0; i < CLASS_TARGETS.craft; i += 1) {
+    await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
+  }
+  await run('rename Old Hand')
+  await run('')
+  expect(hero().heroClass).toBe('Artificer')
+  expect(store.has('shown:s1')).toBe(true)
+
+  expect(await run('reset')).toMatch(/^Old Hand retires at level \d+\. \w+ sets out as a level 1 Adventurer\.$/)
+  expect(hero()).toMatchObject({ level: 1, xp: 0, heroClass: 'Adventurer', quests: 0 })
+  expect(Object.values(hero().deeds).every(n => n === 0)).toBe(true)
+  expect(hero().name).not.toBe('Old Hand')
+  expect(store.has('shown:s1')).toBe(false)
+  expect(lines.at(-1)).toMatch(/· Lv 1 Adventurer · 0\/100 XP$/)
+  expect(await run('')).toMatch(/· Level 1 Adventurer\n.* 0\/100 XP/)
+
+  // The new hero earns from nothing, like any other.
+  await $.tool.call({ tool: 'Bash', command: 'ls' })
+  expect(hero().xp).toBe(XP_PER_DEED.battle)
+})

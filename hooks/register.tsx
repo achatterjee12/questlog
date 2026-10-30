@@ -75,6 +75,22 @@ async function saveHero($: EngineInterface, current: Hero) {
   await $.store.set(HERO_IDS_KEY, all.slice(-MAX_SAVED_HEROES))
 }
 
+// A new hero for the session running now, saved over the old one: what
+// /questlog reset does. The next sheet fills from nothing, and no toast
+// marks a level or class change on the way down.
+async function resetHero($: EngineInterface): Promise<Hero> {
+  const sessionId = await $.session.id()
+  const [seed] = crypto.getRandomValues(new Uint32Array(1))
+  const fresh = newHero(sessionId, seed ?? 0)
+
+  await update($, hero, () => fresh)
+  await saveHero($, fresh)
+  await $.store.delete(shownKey(sessionId))
+  await showStatus($, fresh)
+
+  return fresh
+}
+
 async function isStatusOn($: EngineInterface): Promise<boolean> {
   return (await $.store.get(STATUS_KEY)) !== false
 }
@@ -119,7 +135,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[help | codex | rename <name> | status [on|off]]',
+      argumentHint: '[help | codex | rename <name> | reset | status [on|off]]',
     })
 
     return next(e)
@@ -143,6 +159,14 @@ export const register: Register = on => {
       await gain($, current => ({ ...current, name }))
 
       return { text: `${before} is now known as ${name}.` }
+    }
+    if (sub === 'reset') {
+      const before = await loadHero($)
+      const fresh = await resetHero($)
+
+      return {
+        text: `${before.name} retires at level ${before.level}. ${fresh.name} sets out as a level 1 ${fresh.heroClass}.`,
+      }
     }
     if (sub === 'status') {
       if (value !== undefined && value !== 'on' && value !== 'off') {
