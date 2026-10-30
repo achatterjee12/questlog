@@ -160,8 +160,9 @@ export const HELP_INTRO =
   'Questlog turns this session into an RPG hero. Every tool Claude uses is a deed that earns XP; finished turns are quests.'
 
 // One section of /questlog help: a heading, an optional sentence, and rows
-// whose cells line up in columns.
-export type HelpSection = { heading: string; note?: string; rows: string[][] }
+// whose cells line up in columns; `isCode` when the first column is
+// something to type, drawn in a code font.
+export type HelpSection = { heading: string; note?: string; rows: string[][]; isCode?: boolean }
 
 // The rules as /questlog help shows them, built from the tables above so
 // the two can't disagree. The help keeps every number back, to be found by
@@ -220,6 +221,7 @@ export function helpSections(isCodex: boolean): HelpSection[] {
     },
     {
       heading: 'Commands',
+      isCode: true,
       rows: [
         ['/questlog', 'print the character sheet'],
         ['/questlog status [on|off]', 'show, hide or toggle the status line'],

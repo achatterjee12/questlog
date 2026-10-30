@@ -263,7 +263,9 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
     const full = await draw('codex', codex, surface)
     expect((await full.find({ type: 'Text', text: 'Leveling' }))?.props?.weight).toBe('bold')
     expect(await full.find({ type: 'Text', text: '15 XP' })).toBeDefined()
-    expect(await full.find({ type: 'Text', text: '/questlog codex' })).toBeDefined()
+    // Commands are drawn in a code font; other first columns are not.
+    expect((await full.find({ type: 'Text', text: '/questlog codex' }))?.props?.mono).toBe(true)
+    expect((await full.find({ type: 'Text', text: 'Crafting' }))?.props?.mono).toBeUndefined()
     await full.unmount()
   }
 

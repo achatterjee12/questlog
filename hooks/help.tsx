@@ -17,7 +17,7 @@ export function registerHelp(on: On) {
     return (
       <Box flexDirection="column" gap={1}>
         <Text>{HELP_INTRO}</Text>
-        {helpSections(isCodex).map(({ heading, note, rows }) => {
+        {helpSections(isCodex).map(({ heading, note, rows, isCode }) => {
           const columns = Math.max(0, ...rows.map(cells => cells.length))
           const widths = Array.from(
             { length: columns },
@@ -37,7 +37,13 @@ export function registerHelp(on: On) {
                       <Text dimColor={i > 0}>{cell}</Text>
                     ) : (
                       <Box width={widths[i]} flexShrink={0}>
-                        <Text color={i === 0 ? 'text' : 'success'}>{cell}</Text>
+                        {i === 0 && isCode === true ? (
+                          <Text mono color="suggestion">
+                            {cell}
+                          </Text>
+                        ) : (
+                          <Text color={i === 0 ? 'text' : 'success'}>{cell}</Text>
+                        )}
                       </Box>
                     ),
                   )}
