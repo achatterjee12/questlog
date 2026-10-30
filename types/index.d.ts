@@ -1,10 +1,10 @@
 export type Deed = 'craft' | 'battle' | 'scout' | 'lore' | 'summon' | 'misc'
 
 export type HeroClass =
-  | 'Novice'
+  | 'Adventurer'
   | 'Artificer'
-  | 'Barbarian'
-  | 'Rogue'
+  | 'Warrior'
+  | 'Ranger'
   | 'Wizard'
   | 'Necromancer'
 

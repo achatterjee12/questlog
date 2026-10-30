@@ -29,13 +29,13 @@ export const XP_PER_FUMBLE = 2
 
 const CLASS_BY_DEED: Record<Exclude<Deed, 'misc'>, HeroClass> = {
   craft: 'Artificer',
-  battle: 'Barbarian',
-  scout: 'Rogue',
+  battle: 'Warrior',
+  scout: 'Ranger',
   lore: 'Wizard',
   summon: 'Necromancer',
 }
 
-// A hero stays a Novice until they have done this many classed deeds.
+// A hero stays an Adventurer until they have done this many classed deeds.
 const DEEDS_TO_EARN_CLASS = 5
 
 const NAMES = [
@@ -90,12 +90,12 @@ export function classFor(deeds: Hero['deeds']): HeroClass {
   const total = ranked.reduce((sum, one) => sum + one.count, 0)
 
   if (total < DEEDS_TO_EARN_CLASS) {
-    return 'Novice'
+    return 'Adventurer'
   }
 
   const top = ranked[0]
 
-  return top === undefined ? 'Novice' : CLASS_BY_DEED[top.deed]
+  return top === undefined ? 'Adventurer' : CLASS_BY_DEED[top.deed]
 }
 
 // A saved hero with the class its deeds earn under today's rules, so one
@@ -108,7 +108,7 @@ export function newHero(sessionId: string, seed: number): Hero {
   return {
     sessionId,
     name: NAMES[seed % NAMES.length] ?? 'Hero',
-    heroClass: 'Novice',
+    heroClass: 'Adventurer',
     level: 1,
     xp: 0,
     deeds: { craft: 0, battle: 0, scout: 0, lore: 0, summon: 0, misc: 0 },
@@ -221,8 +221,8 @@ export function helpSections(isCodex: boolean): HelpSection[] {
     {
       heading: 'Classes',
       note: isCodex
-        ? `You're a Novice until you've done ${DEEDS_TO_EARN_CLASS} deeds. Then your class is whichever deed you have done most, and it can change as you go.`
-        : "You start as a Novice. Once you've done enough deeds, your class is whichever deed you do most, and it can change as you go.",
+        ? `You're an Adventurer until you've done ${DEEDS_TO_EARN_CLASS} deeds. Then your class is whichever deed you have done most, and it can change as you go.`
+        : "You start as an Adventurer. Once you've done enough deeds, your class is whichever deed you do most, and it can change as you go.",
       rows: classed.map(deed => [CLASS_BY_DEED[deed], `most ${DEED_NAMES[deed].toLowerCase()}`]),
     },
     {

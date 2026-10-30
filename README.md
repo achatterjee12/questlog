@@ -15,9 +15,9 @@ summoning when it calls on a subagent. Each turn it finishes is a quest,
 worth XP of its own, and even a tool call that fails teaches the hero a
 little. How much each is worth is for you to find out as you play.
 
-Your hero starts as a **Novice**. Once they've done enough deeds, their
+Your hero starts as an **Adventurer**. Once they've done enough deeds, their
 class becomes whichever deed they do most: **Artificer** (crafting),
-**Barbarian** (battle), **Rogue** (scouting), **Wizard** (lore) or
+**Warrior** (battle), **Ranger** (scouting), **Wizard** (lore) or
 **Necromancer** (summoning). The class can change as the session goes on.
 
 Each session (one conversation) gets its own hero. The hero is saved under
@@ -59,7 +59,7 @@ playing.
 
 ### Classes
 
-A hero is a Novice until they have done 5 deeds of the five classed kinds
+A hero is an Adventurer until they have done 5 deeds of the five classed kinds
 (anything else doesn't count). From then on, their class is whichever of
 those deeds they have done most.
 

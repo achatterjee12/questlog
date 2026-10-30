@@ -95,7 +95,7 @@ test('the sheet is a snapshot that reads as plain text too', async ($, on) => {
   await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
 
   // Plain, it still reads as a sheet after the engine's "questlog: " label.
-  expect(text).toMatch(/^⚔ \w+ · Level 1 Novice\n.* 0\/100 XP\n/)
+  expect(text).toMatch(/^⚔ \w+ · Level 1 Adventurer\n.* 0\/100 XP\n/)
   expect(text).toMatch(/\nCrafted 0 · Battles 0 · Scouted 0 · Lore 0 · Summons 0\n/)
   // The row drawn earlier keeps what it showed.
   expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 0\/100 XP$/)
@@ -117,7 +117,7 @@ test('a sheet behind the engine\'s "questlog: " label still draws', async ($, on
     surface: 'desktop',
   })
 
-  expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 1 Novice')
+  expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 1 Adventurer')
   expect((await ui.find({ type: 'Text', text: /^Battles/ }))?.text).toMatch(/^Battles\s+1 ▰{10}$/)
   expect(await ui.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
   await ui.unmount()
@@ -142,7 +142,7 @@ test('a hero an earlier version stored is declined', async ($, on) => {
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   const { text, ui } = await questlog($, '', 'desktop')
 
-  expect(text).toMatch(/Level 1 Novice/)
+  expect(text).toMatch(/Level 1 Adventurer/)
   await ui.unmount()
 })
 
@@ -164,8 +164,8 @@ test('a resumed session gets its saved hero back', async ($, on) => {
 
   const { text, ui } = await questlog($, '', 'desktop')
   // Saved as a Berserker, the class's name before it was renamed.
-  expect(text).toMatch(/^⚔ Dagny · Level 3 Barbarian\n/)
-  expect((store.get('hero:s1') as { heroClass: string }).heroClass).toBe('Barbarian')
+  expect(text).toMatch(/^⚔ Dagny · Level 3 Warrior\n/)
+  expect((store.get('hero:s1') as { heroClass: string }).heroClass).toBe('Warrior')
   expect(text).toMatch(/\n█{5}░{15} 79\/300 XP\n/)
   expect((await ui.find({ type: 'Text', text: /Dagny$/ }))?.text).toBe('⚔ Dagny')
   // 379 XP is 79 into level 3, which runs from 300 to 600.
@@ -205,7 +205,7 @@ test('/questlog status turns the status line off and on', async ($, on) => {
     $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  expect(lines.at(-1)).toMatch(/Lv 1 Novice/)
+  expect(lines.at(-1)).toMatch(/Lv 1 Adventurer/)
 
   expect((await run('status off')).text).toBe('Status line off.')
   expect(lines.at(-1)).toBeUndefined()
@@ -246,7 +246,7 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
   // The codex has every amount, the class threshold and the formula.
   expect(codex).toMatch(/\nCrafting · 15 XP · Edit, Write, NotebookEdit\n/)
   expect(codex).toMatch(/\nQuest · 25 XP · each finished turn\n/)
-  expect(codex).toMatch(/Novice until you've done 5 deeds/)
+  expect(codex).toMatch(/Adventurer until you've done 5 deeds/)
   expect(codex).toMatch(/takes 100 × L XP/)
   expect(codex).toMatch(/\nLevel 3 · 200 XP after level 2 · 300 XP in all\n/)
   for (const text of [help, codex]) {
@@ -273,7 +273,7 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
   }
 
   // Reading the rules earns nothing and leaves the hero as it was.
-  expect(await run('')).toMatch(/Level 1 Novice\n.* 0\/100 XP/)
+  expect(await run('')).toMatch(/Level 1 Adventurer\n.* 0\/100 XP/)
 })
 
 test('/questlog gallery opens a pane that animates', async ($, on) => {
@@ -314,8 +314,8 @@ test('/questlog rename renames this session\'s hero', async ($, on) => {
   // The name keeps its case; the sheet's separator and extra spaces go.
   expect(await run('rename   Sir  Lance·lot ')).toMatch(/ is now known as Sir Lance lot\.$/)
   expect((store.get('hero:s1') as { name: string }).name).toBe('Sir Lance lot')
-  expect(lines.at(-1)).toMatch(/^⚔ Sir Lance lot · Lv 1 Novice/)
-  expect(await run('')).toMatch(/^⚔ Sir Lance lot · Level 1 Novice\n/)
+  expect(lines.at(-1)).toMatch(/^⚔ Sir Lance lot · Lv 1 Adventurer/)
+  expect(await run('')).toMatch(/^⚔ Sir Lance lot · Level 1 Adventurer\n/)
   expect(before).not.toBe('Sir Lance lot')
 
   expect(await run('rename')).toBe('Usage: /questlog rename <name>')

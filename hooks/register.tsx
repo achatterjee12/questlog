@@ -24,7 +24,7 @@ import { registerSheet, sheetText } from './sheet'
 // Change the tag when Hero's fields or class names change: it declines what an earlier
 // version stored, which outlives a reload.
 const hero = atom({ plugin: 'questlog', key: 'hero' } as const, null, {
-  shape: 'hero-3',
+  shape: 'hero-4',
 })
 
 const STATUS_KEY = 'statusLine'

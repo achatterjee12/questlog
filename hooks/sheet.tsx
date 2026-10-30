@@ -20,10 +20,10 @@ const DEEDS: readonly (readonly [Exclude<Deed, 'misc'>, string, number])[] = [
 ]
 
 const CLASS_COLORS: Record<HeroClass, number> = {
-  Novice: 0xadb5bd,
+  Adventurer: 0xadb5bd,
   Artificer: 0xffa94d,
-  Barbarian: 0xff6b6b,
-  Rogue: 0x69db7c,
+  Warrior: 0xff6b6b,
+  Ranger: 0x69db7c,
   Wizard: 0x74c0fc,
   Necromancer: 0xb197fc,
 }
@@ -31,8 +31,10 @@ const CLASS_COLORS: Record<HeroClass, number> = {
 // What classes were called before they were renamed: a sheet printed back
 // then still draws, in its new class's color, under the name it shows.
 const FORMER_CLASSES: Record<string, HeroClass> = {
-  Berserker: 'Barbarian',
-  Ranger: 'Rogue',
+  Novice: 'Adventurer',
+  Berserker: 'Warrior',
+  Barbarian: 'Warrior',
+  Rogue: 'Ranger',
   Sage: 'Wizard',
   Summoner: 'Necromancer',
 }
@@ -99,7 +101,7 @@ export function registerSheet(on: On) {
     }
 
     const { Box, Text } = $.ui.resolve(e)
-    const classColor = colorOf(sheet.heroClass) ?? CLASS_COLORS.Novice
+    const classColor = colorOf(sheet.heroClass) ?? CLASS_COLORS.Adventurer
     const filled = filledCells(sheet.gained, sheet.needed)
     const most = Math.max(1, ...DEEDS.map(([deed]) => sheet.deeds[deed]))
     const gradient = (text: string, start: number, end: number) =>
