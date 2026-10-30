@@ -8,36 +8,79 @@ one-line summary.
 
 ## How it plays
 
-| Deed | Tools | XP |
-| --- | --- | --- |
-| Crafting | Edit, Write, NotebookEdit | 15 |
-| Battle | Bash | 10 |
-| Scouting | Read, Grep, Glob | 5 |
-| Lore | WebSearch, WebFetch, MCP tools | 8 |
-| Summoning | Agent | 20 |
-| Anything else | other tools | 3 |
-| Quest | each finished turn | 25 |
-| Fumble | a tool call that errors | 2 |
+Every tool Claude uses is a deed that earns your hero XP: crafting when it
+edits files, battle when it runs commands, scouting when it reads and
+searches, lore when it looks things up on the web or through MCP tools, and
+summoning when it calls on a subagent. Each turn it finishes is a quest,
+worth XP of its own, and even a tool call that fails teaches the hero a
+little. How much each is worth is for you to find out as you play.
 
-Your class is whichever deed you have done most, once you've done five:
-**Artificer** (crafting), **Berserker** (battle), **Ranger** (scouting),
-**Sage** (lore) or **Summoner** (summoning). Until then you're a **Novice**.
-The class can change as the session goes on.
+Your hero starts as a **Novice**. Once they've done enough deeds, their
+class becomes whichever deed they do most: **Artificer** (crafting),
+**Berserker** (battle), **Ranger** (scouting), **Sage** (lore) or
+**Summoner** (summoning). The class can change as the session goes on.
 
 Each session (one conversation) gets its own hero. The hero is saved under
 the session's ID, so closing Claude Code and resuming the conversation later
 brings it back. A new conversation, a `/clear` or a forked session starts a
 new hero. The 500 most recently started heroes are kept.
 
-`/questlog` prints the character sheet as it stands, and `/questlog help`
-explains how it plays without giving away any numbers; `/questlog codex`
-reveals them all: the XP for each deed, the class threshold and the
-leveling formula. `/questlog rename <name>` gives this session's hero a
-new name, up to 24 characters. `/questlog gallery` opens a pane showing
-off what a plugin can draw: colors, gradients, animation, borders, hover
-and pixel art. `/questlog status off` hides the status-line summary and
-`/questlog status on` brings it back; plain `/questlog status` toggles it.
-That setting is remembered across sessions.
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `/questlog` | Print the character sheet as it stands |
+| `/questlog help` | Explain how it plays, without giving away any numbers |
+| `/questlog codex` | Reveal every number: XP per deed, the class threshold, leveling |
+| `/questlog rename <name>` | Give this session's hero a new name, up to 24 characters |
+| `/questlog status [on\|off]` | Hide, show or toggle the status-line summary; remembered across sessions |
+| `/questlog gallery` | Open a pane showing off what a plugin can draw |
+
+## The codex
+
+Everything `/questlog codex` reveals. Skip it if you'd rather find out by
+playing.
+
+<details>
+<summary>Show the numbers (spoilers)</summary>
+
+### XP for each deed
+
+| Deed | Tools | XP |
+| --- | --- | --- |
+| Crafting | Edit, Write, NotebookEdit | 15 |
+| Battle | Bash | 10 |
+| Scouting | Read, Grep, Glob | 5 |
+| Lore | WebSearch, WebFetch, MCP tools | 8 |
+| Summoning | Agent, Task | 20 |
+| Anything else | other tools | 3 |
+| Quest | each finished turn | 25 |
+| Fumble | a tool call that errors, in place of its deed | 2 |
+
+### Classes
+
+A hero is a Novice until they have done 5 deeds of the five classed kinds
+(anything else doesn't count). From then on, their class is whichever of
+those deeds they have done most.
+
+### Leveling
+
+Going from level L to level L+1 takes 100 × L XP, so reaching level L takes
+50 × L × (L − 1) XP in all.
+
+| Level | XP after the previous level | XP in all |
+| --- | --- | --- |
+| 2 | 100 | 100 |
+| 3 | 200 | 300 |
+| 4 | 300 | 600 |
+| 5 | 400 | 1000 |
+| 6 | 500 | 1500 |
+| 7 | 600 | 2100 |
+
+The character sheet and the status line count XP within the current level:
+gained since the last level up, out of what that level takes.
+
+</details>
 
 ## Install
 
@@ -70,10 +113,11 @@ claude plugin validate .
 claude plugin test .
 ```
 
-The rules live in `hooks/game.ts`, the character sheet in
-`hooks/sheet.tsx`, the gallery in `hooks/gallery.tsx`, the engine wiring in
-`hooks/register.tsx`, and the per-session state contract in
-`types/index.d.ts`.
+The rules and the help text live in `hooks/game.ts`, the character sheet
+in `hooks/sheet.tsx`, the drawn help and codex in `hooks/help.tsx`, the
+gallery in `hooks/gallery.tsx`, shared color math in `hooks/colors.ts`, the
+engine wiring in `hooks/register.tsx`, and the per-session state contract
+in `types/index.d.ts`.
 
 ## Credits
 
