@@ -133,6 +133,9 @@ claude plugin validate .
 claude plugin test .
 ```
 
+CI runs the same validation and tests on every push to `main` and every
+pull request.
+
 Every balancing number is in `hooks/balance.ts`. The rules and the help
 text live in `hooks/game.ts`, the character sheet in `hooks/sheet.tsx` and
 the pace its XP bar fills at in `hooks/fill.ts`, the drawn help and codex
