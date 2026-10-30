@@ -135,7 +135,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[help | codex | rename <name> | reset | status [on|off]]',
+      argumentHint: '[help | codex | rename <name> | reset [confirm] | status [on|off]]',
     })
 
     return next(e)
@@ -162,6 +162,12 @@ export const register: Register = on => {
     }
     if (sub === 'reset') {
       const before = await loadHero($)
+      // Nothing brings the old hero back, so a plain reset only says so.
+      if (value !== 'confirm') {
+        return {
+          text: `This retires ${before.name}, level ${before.level}, for good and starts this session over with a new hero at level 1. To go ahead, run /questlog reset confirm.`,
+        }
+      }
       const fresh = await resetHero($)
 
       return {

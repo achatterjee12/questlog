@@ -480,7 +480,14 @@ test('/questlog reset starts this session over with a new hero', async ($, on) =
   expect(hero().heroClass).toBe('Artificer')
   expect(store.has('shown:s1')).toBe(true)
 
-  expect(await run('reset')).toMatch(/^Old Hand retires at level \d+\. \w+ sets out as a level 1 Adventurer\.$/)
+  // A plain reset changes nothing and says how to confirm.
+  const xp = hero().xp
+  expect(await run('reset')).toMatch(/^This retires Old Hand, level \d+, for good .* run \/questlog reset confirm\.$/)
+  expect(await run('reset now')).toMatch(/^This retires Old Hand/)
+  expect(hero()).toMatchObject({ name: 'Old Hand', xp, heroClass: 'Artificer' })
+  expect(store.has('shown:s1')).toBe(true)
+
+  expect(await run('reset confirm')).toMatch(/^Old Hand retires at level \d+\. \w+ sets out as a level 1 Adventurer\.$/)
   expect(hero()).toMatchObject({ level: 1, xp: 0, heroClass: 'Adventurer', quests: 0 })
   expect(Object.values(hero().deeds).every(n => n === 0)).toBe(true)
   expect(hero().name).not.toBe('Old Hand')

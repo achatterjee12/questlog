@@ -245,7 +245,7 @@ export function helpSections(isCodex: boolean): HelpSection[] {
         ['/questlog', 'print the character sheet'],
         ['/questlog status [on|off]', 'show, hide or toggle the status line'],
         ['/questlog rename <name>', "rename this session's hero"],
-        ['/questlog reset', "start this session over with a new hero"],
+        ['/questlog reset', 'start this session over with a new hero, after you confirm'],
         ['/questlog help', 'how Questlog plays, without the numbers'],
         ['/questlog codex', 'every number: XP per deed, class targets, leveling'],
       ],
