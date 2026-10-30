@@ -52,7 +52,14 @@ export function cleanName(raw: string): string {
   return raw.replace(/[\p{Cc}·]/gu, ' ').replace(/\s+/g, ' ').trim()
 }
 
+// The desktop app's own tools, such as task-list updates, are its plumbing,
+// not the hero looking anything up.
+const DESKTOP_TOOL_PREFIX = 'mcp__ccd_'
+
 export function deedOf(tool: string): Deed {
+  if (tool.startsWith(DESKTOP_TOOL_PREFIX)) {
+    return 'misc'
+  }
   if (tool.startsWith('mcp__')) {
     return 'lore'
   }

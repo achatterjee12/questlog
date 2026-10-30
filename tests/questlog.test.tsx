@@ -188,6 +188,23 @@ test('a new session id, as after /clear, starts a new hero', async ($, on) => {
   expect(store.get('heroIds')).toEqual(['s1', 's2'])
 })
 
+test('the desktop app\'s own tools are not lore', async ($, on) => {
+  const store = engine(on)
+  const call = (tool: string) =>
+    $.tool.call({ tool } as Parameters<typeof $.tool.call>[0])
+  const hero = () => store.get('hero:s1') as { xp: number; deeds: Record<string, number> }
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await call('mcp__ccd_turn__update_plan')
+  expect(hero().xp).toBe(3)
+  expect(hero().deeds.lore).toBe(0)
+  expect(hero().deeds.misc).toBe(1)
+
+  await call('mcp__slack__send_message')
+  expect(hero().xp).toBe(11)
+  expect(hero().deeds.lore).toBe(1)
+})
+
 test('other /questlog output is left as the engine draws it', async ($, on) => {
   engine(on)
 
