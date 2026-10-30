@@ -9,6 +9,8 @@ export type HeroClass =
   | 'Necromancer'
 
 export type Hero = {
+  // The HERO_VERSION it was saved under; migrateHero reads older ones.
+  version: number
   sessionId: string
   name: string
   heroClass: HeroClass

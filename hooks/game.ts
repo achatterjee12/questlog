@@ -107,14 +107,13 @@ export function classFor(deeds: Hero['deeds'], current: HeroClass = 'Adventurer'
   return CLASS_BY_DEED[kept ?? top]
 }
 
-// A saved hero with the class its deeds earn under today's rules, so one
-// saved before a class was renamed or rebalanced comes back right.
-export function withCurrentClass(hero: Hero): Hero {
-  return { ...hero, heroClass: classFor(hero.deeds, hero.heroClass) }
-}
+// The shape of Hero that this version saves. Raise it when a field is
+// renamed or changes meaning, and teach migrateHero to read the old one.
+export const HERO_VERSION = 1
 
 export function newHero(sessionId: string, seed: number): Hero {
   return {
+    version: HERO_VERSION,
     sessionId,
     name: NAMES[seed % NAMES.length] ?? 'Hero',
     heroClass: 'Adventurer',
@@ -126,20 +125,43 @@ export function newHero(sessionId: string, seed: number): Hero {
   }
 }
 
-// What the store holds is trusted only if it looks like a hero of this session.
-export function isHeroOf(value: unknown, sessionId: string): value is Hero {
+// A hero as the store holds it, brought up to this version's shape, or
+// undefined when it isn't a hero of this session. Whatever an earlier
+// version saved keeps its progress: a field it didn't have starts where a
+// new hero's does, a value that doesn't make sense counts as none, and the
+// level and class are worked out again under today's rules, so a hero saved
+// before a rename or a rebalance comes back right.
+export function migrateHero(value: unknown, sessionId: string): Hero | undefined {
   if (typeof value !== 'object' || value === null) {
-    return false
+    return undefined
   }
-  const maybe = value as Partial<Hero>
+  const saved = value as Record<string, unknown>
+  if (saved.sessionId !== sessionId) {
+    return undefined
+  }
 
-  return (
-    maybe.sessionId === sessionId &&
-    typeof maybe.name === 'string' &&
-    typeof maybe.xp === 'number' &&
-    typeof maybe.deeds === 'object' &&
-    maybe.deeds !== null
-  )
+  const count = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) && n > 0 ? Math.floor(n) : 0)
+  const fresh = newHero(sessionId, 0)
+  const savedDeeds = (typeof saved.deeds === 'object' && saved.deeds !== null ? saved.deeds : {}) as Record<
+    string,
+    unknown
+  >
+  const deeds = Object.fromEntries(
+    (Object.keys(fresh.deeds) as Deed[]).map(deed => [deed, count(savedDeeds[deed])]),
+  ) as Hero['deeds']
+  const name = typeof saved.name === 'string' ? cleanName(saved.name) : ''
+  const xp = count(saved.xp)
+
+  return {
+    ...fresh,
+    name: name === '' ? fresh.name : name,
+    heroClass: classFor(deeds, typeof saved.heroClass === 'string' ? (saved.heroClass as HeroClass) : 'Adventurer'),
+    level: levelFor(xp),
+    xp,
+    deeds,
+    quests: count(saved.quests),
+    fumbles: count(saved.fumbles),
+  }
 }
 
 function withXp(hero: Hero, xp: number): Hero {

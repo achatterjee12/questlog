@@ -183,6 +183,36 @@ test('a resumed session gets its saved hero back', async ($, on) => {
   expect((store.get('hero:s1') as { xp: number }).xp).toBe(379)
 })
 
+test('a hero saved by an earlier version keeps its progress', async ($, on) => {
+  // As an early version saved it: no version, no fumbles, no summoning yet,
+  // and a level that leveling as it stands doesn't give 369 XP.
+  const saved = {
+    sessionId: 's1',
+    name: 'Brynn',
+    heroClass: 'Novice',
+    level: 1,
+    xp: 369,
+    deeds: { craft: 3, battle: 7, scout: 12, lore: 1, misc: 'n/a' },
+    quests: 4,
+  }
+  const store = engine(on, { saved: { 'hero:s1': saved } })
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  await $.tool.call({ tool: 'Read', file_path: '/a' })
+
+  expect(store.get('hero:s1')).toEqual({
+    version: 1,
+    sessionId: 's1',
+    name: 'Brynn',
+    heroClass: 'Adventurer',
+    level: levelFor(369 + XP_PER_DEED.scout),
+    xp: 369 + XP_PER_DEED.scout,
+    deeds: { craft: 3, battle: 7, scout: 13, lore: 1, summon: 0, misc: 0 },
+    quests: 4,
+    fumbles: 0,
+  })
+})
+
 test('a store that fails never stops the session', async ($, on) => {
   const registered: string[] = []
   on('store.get', () => {
