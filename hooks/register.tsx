@@ -2,7 +2,6 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Hero } from '../types'
-import { openGallery, registerGallery } from './gallery'
 import {
   afterDeed,
   afterQuest,
@@ -14,7 +13,6 @@ import {
   newHero,
   summary,
   withCurrentClass,
-  withXp,
 } from './game'
 import { registerHelp } from './help'
 import { registerSheet, sheetText, startFill } from './sheet'
@@ -110,7 +108,6 @@ async function gain($: EngineInterface, change: (current: Hero) => Hero) {
 }
 
 export const register: Register = on => {
-  registerGallery(on)
   registerSheet(on)
   registerHelp(on)
 
@@ -122,7 +119,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[help | codex | rename <name> | status [on|off] | gallery]',
+      argumentHint: '[help | codex | rename <name> | status [on|off]]',
     })
 
     return next(e)
@@ -146,25 +143,6 @@ export const register: Register = on => {
       await gain($, current => ({ ...current, name }))
 
       return { text: `${before} is now known as ${name}.` }
-    }
-    // TEMPORARY, for trying out the XP bar's fill: remove before release.
-    if (sub === 'add') {
-      const xp = Number(value)
-      if (!Number.isInteger(xp) || xp < 1) {
-        return { text: 'Usage: /questlog add <xp>' }
-      }
-      await gain($, current => withXp(current, xp))
-
-      return { text: `Added ${xp} XP.` }
-    }
-    if (sub === 'gallery') {
-      const opened = await openGallery($)
-
-      return {
-        text: opened.isPlaced
-          ? 'Gallery opened.'
-          : `The gallery needs a pane, and this surface can't show one: ${opened.reason}`,
-      }
     }
     if (sub === 'status') {
       if (value !== undefined && value !== 'on' && value !== 'off') {

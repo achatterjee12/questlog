@@ -35,7 +35,6 @@ new hero. The 500 most recently started heroes are kept.
 | `/questlog codex` | Reveal every number: XP per deed, class targets, leveling |
 | `/questlog rename <name>` | Give this session's hero a new name, up to 24 characters |
 | `/questlog status [on\|off]` | Hide, show or toggle the status-line summary; remembered across sessions |
-| `/questlog gallery` | Open a pane showing off what a plugin can draw |
 
 ## The codex
 
@@ -112,11 +111,11 @@ claude plugin test .
 ```
 
 Every balancing number is in `hooks/balance.ts`. The rules and the help
-text live in `hooks/game.ts`, the character sheet
-in `hooks/sheet.tsx` and the pace its XP bar fills at in `hooks/fill.ts`, the drawn help and codex in `hooks/help.tsx`, the
-gallery in `hooks/gallery.tsx`, shared color math in `hooks/colors.ts`, the
-engine wiring in `hooks/register.tsx`, and the per-session state contract
-in `types/index.d.ts`.
+text live in `hooks/game.ts`, the character sheet in `hooks/sheet.tsx` and
+the pace its XP bar fills at in `hooks/fill.ts`, the drawn help and codex
+in `hooks/help.tsx`, color math in `hooks/colors.ts`, the engine wiring in
+`hooks/register.tsx`, and the per-session state contract in
+`types/index.d.ts`.
 
 ## Credits
 

@@ -142,7 +142,7 @@ export function isHeroOf(value: unknown, sessionId: string): value is Hero {
   )
 }
 
-export function withXp(hero: Hero, xp: number): Hero {
+function withXp(hero: Hero, xp: number): Hero {
   const total = hero.xp + xp
 
   return { ...hero, xp: total, level: levelFor(total) }
@@ -247,7 +247,6 @@ export function helpSections(isCodex: boolean): HelpSection[] {
         ['/questlog rename <name>', "rename this session's hero"],
         ['/questlog help', 'how Questlog plays, without the numbers'],
         ['/questlog codex', 'every number: XP per deed, class targets, leveling'],
-        ['/questlog gallery', 'show off what the pane can draw'],
       ],
     },
   ]

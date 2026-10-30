@@ -5,19 +5,6 @@ import { CLASS_TARGETS, XP_PER_DEED, XP_PER_LEVEL_STEP, XP_PER_QUEST } from '../
 import { fillDuration, fillFrame } from '../hooks/fill'
 import { classFor, levelFor, levelProgress, xpForLevel } from '../hooks/game'
 
-const PANE = {
-  plugin: 'questlog',
-  component: 'Pane',
-  requestId: 'questlog',
-  props: {
-    title: 'Questlog',
-    isFocused: false,
-    bodyColumns: 40,
-    placement: 'dock',
-    scroll: { offset: 0, bodyRows: 20 },
-    view: {},
-  },
-} as const
 
 // Stands in for the engine beneath the plugin. `ids` is the session id
 // `$.session.id()` answers, read on each call so a test can move it; the
@@ -26,7 +13,6 @@ function engine(
   on: On,
   {
     ids = { current: 's1' },
-    isPlaced = true,
     saved = {} as Record<string, unknown>,
     lines = [] as (string | undefined)[],
   } = {},
@@ -38,11 +24,6 @@ function engine(
   on('ui.status', (_, e) => (lines.push(e.text), { value: undefined }))
   on('session.id', () => ({ value: ids.current }))
   on('command.register', () => ({ value: { command: 'questlog' } }))
-  on('ui.open', () =>
-    isPlaced
-      ? { value: { isPlaced: true } }
-      : { value: { isPlaced: false, reason: 'too narrow' } },
-  )
   on('session.start', (_, e) => ({ cwd: e.cwd }))
   on('tool.call', () => ({ result: {} }))
   // The engine's own drawing of an output row: its text as is.
@@ -325,32 +306,6 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
   expect(await run('')).toMatch(/Level 1 Adventurer\n.* 0\/100 XP/)
 })
 
-test('/questlog gallery opens a pane that animates', async ($, on) => {
-  engine(on)
-  const clock = mock.clock(on)
-  const run = (args: string) =>
-    $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
-  const percent = async (ui: { find: typeof terminal.find }) =>
-    (await ui.find({ type: 'Text', text: /%$/ }))?.text.match(/(\d+)%$/)?.[1]
-
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  expect((await run('gallery')).text).toBe('Gallery opened.')
-
-  const terminal = await $.ui.mount({ ...PANE, requestId: 'questlog-gallery', surface: 'terminal' })
-  const desktop = await $.ui.mount({ ...PANE, requestId: 'questlog-gallery', surface: 'desktop' })
-  for (const heading of ['Colors', 'Styles', 'Gradients', 'Animated', 'Borders', 'Hover', 'Pixels']) {
-    expect(await terminal.find({ type: 'Text', text: heading })).toBeDefined()
-  }
-  expect(await terminal.find({ type: 'Raster' })).toBeDefined()
-  expect(await desktop.find({ type: 'Svg' })).toBeDefined()
-
-  // Ten ticks a second: half a second fills the bar from 0% to 13%.
-  expect(await percent(terminal)).toBe('0')
-  await clock.advance(500)
-  expect(await percent(terminal)).toBe('13')
-  expect(await percent(desktop)).toBe('13')
-})
-
 test('/questlog rename renames this session\'s hero', async ($, on) => {
   const lines: (string | undefined)[] = []
   const store = engine(on, { lines })
@@ -505,18 +460,4 @@ test('the newest sheet fills its bar from what the last one showed', async ($, o
   // A sheet printed before sheets told the gain draws as it stands.
   const old = await sheetRow('⚔ Ulla · Level 1 Adventurer\n█████░░░░░░░░░░░░░░░ 25/100 XP\nQuests 1 · Fumbles 0', 'r3')
   expect(await xpLine(old)).toBe('25/100 XP')
-})
-
-// TEMPORARY, with /questlog add: remove both together.
-test('/questlog add gives XP, levels included', async ($, on) => {
-  engine(on)
-  on('ui.toast', () => ({ value: undefined }))
-  const run = async (args: string) =>
-    (await $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])).text ?? ''
-
-  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
-  await run('')
-  expect(await run('add 0')).toBe('Usage: /questlog add <xp>')
-  expect(await run('add 150')).toBe('Added 150 XP.')
-  expect(await run('')).toMatch(/· Level 2 .*\n.* 50\/200 XP · \+150 XP\n/)
 })
