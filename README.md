@@ -80,7 +80,29 @@ rare ones such as calling a subagent, and each class is about as likely.
 
 </details>
 
+## Privacy
+
+Questlog keeps everything on your machine, in Claude Code's local storage
+for plugins, and sends nothing anywhere: it makes no network requests and
+has no telemetry. Of each tool call it sees only the tool's name and
+whether it failed, never what the tool was given or returned, and it never
+changes what a tool call does or which calls are allowed.
+
+What it saves:
+
+- For each session's hero: the session's ID, the hero's name (a random
+  one, or what you gave `/questlog rename`), class, level, XP and counts of
+  deeds, quests and fumbles
+- The XP the session's last character sheet showed, so the next one's bar
+  fills from there
+- The IDs of the sessions it has heroes for, to keep only the 500 most
+  recently started
+- Whether you turned the status line off with `/questlog status`
+
 ## Install
+
+Questlog is built and tested on Claude Code 2.1.314. Use that version or
+later; an earlier one may not load it.
 
 At the prompt of a Claude Code terminal session:
 
