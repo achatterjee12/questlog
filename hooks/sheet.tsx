@@ -4,7 +4,7 @@
 // parses the text back and draws it with color, the newest sheet filling its
 // XP bar from what the last one showed.
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, On, Timer } from 'claude-code'
+import type { EngineInterface, On, ThemeKey, Timer } from 'claude-code'
 
 import type { Deed, Hero, HeroClass } from '../types'
 import { gradientColors, hex } from './colors'
@@ -30,6 +30,18 @@ const CLASS_COLORS: Record<HeroClass, number> = {
   Ranger: 0x69db7c,
   Wizard: 0x74c0fc,
   Necromancer: 0xb197fc,
+}
+
+// The class's name is drawn in the theme color closest to its own, which
+// stays readable on a light theme as well as a dark one; the border and the
+// bars, solid enough to show on either, keep the raw colors above.
+const CLASS_THEME_COLORS: Record<HeroClass, ThemeKey> = {
+  Adventurer: 'inactive',
+  Artificer: 'warning',
+  Warrior: 'error',
+  Ranger: 'success',
+  Wizard: 'suggestion',
+  Necromancer: 'merged',
 }
 
 // What classes were called before they were renamed: a sheet printed back
@@ -81,6 +93,10 @@ export async function startFill($: EngineInterface, from: number, to: number) {
 
 function colorOf(heroClass: string): number | undefined {
   return CLASS_COLORS[(FORMER_CLASSES[heroClass] ?? heroClass) as HeroClass]
+}
+
+function themeColorOf(heroClass: string): ThemeKey | undefined {
+  return CLASS_THEME_COLORS[(FORMER_CLASSES[heroClass] ?? heroClass) as HeroClass]
 }
 
 // What the sheet shows, and all the drawing needs. XP counts within the
@@ -166,6 +182,7 @@ export function registerSheet(on: On) {
 
     const { Box, Text } = $.ui.resolve(e)
     const classColor = colorOf(sheet.heroClass) ?? CLASS_COLORS.Adventurer
+    const classThemeColor = themeColorOf(sheet.heroClass) ?? CLASS_THEME_COLORS.Adventurer
     const filled = filledCells(gained, needed)
     // Each deed's bar is its progress toward its class, so the longest bar is
     // the class the hero is closest to, or has.
@@ -182,13 +199,17 @@ export function registerSheet(on: On) {
         flexDirection="column"
         alignSelf="flex-start"
       >
-        <Text weight="bold">{gradient(`⚔ ${sheet.name}`, 0xffd43b, classColor)}</Text>
+        {/* The theme's accent, not a raw color: it stays readable on a light
+            theme as well as a dark one. */}
+        <Text weight="bold" color="claude">
+          ⚔ {sheet.name}
+        </Text>
         {/* Two columns, so the counter sits right above the XP it drains into. */}
         <Box flexDirection="row" columnGap={1}>
           <Box flexDirection="column">
             <Text>
               Level {level}{' '}
-              <Text color={hex(classColor)} weight="bold">
+              <Text color={classThemeColor} weight="bold">
                 {sheet.heroClass}
               </Text>
             </Text>

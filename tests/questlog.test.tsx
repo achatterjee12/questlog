@@ -35,6 +35,11 @@ function engine(
   return store
 }
 
+// The color the sheet's "Level N <class>" row draws the class's name in.
+function classColorOf(row: { children?: unknown[] } | undefined) {
+  return (row?.children?.at(-1) as { props?: { color?: string } } | undefined)?.props?.color
+}
+
 // Long enough for any sheet's bar to finish filling.
 const SETTLED_MS = 60_000
 
@@ -76,6 +81,8 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
     await clock.advance(SETTLED_MS)
 
     expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe(`Level ${level} Artificer`)
+    // The class's name follows the theme, so it reads on a light one too.
+    expect(classColorOf(await ui.find({ type: 'Text', text: /^Level/ }))).toBe('warning')
     expect((await ui.find({ type: 'Text', text: /^[█░]+$/ }))?.text).toBe(
       `${'█'.repeat(filled)}${'░'.repeat(20 - filled)}`,
     )
@@ -175,7 +182,10 @@ test('a resumed session gets its saved hero back', async ($, on) => {
   expect(text).toMatch(/^⚔ Dagny · Level 3 Warrior\n/)
   expect((store.get('hero:s1') as { heroClass: string }).heroClass).toBe('Warrior')
   expect(text).toMatch(/\n█{5}░{15} 79\/300 XP · \+379 XP\n/)
-  expect((await ui.find({ type: 'Text', text: /Dagny$/ }))?.text).toBe('⚔ Dagny')
+  // One color, the theme's accent, so the name reads on a light theme too.
+  const name = await ui.find({ type: 'Text', text: /Dagny$/ })
+  expect(name?.text).toBe('⚔ Dagny')
+  expect(name?.props?.color).toBe('claude')
   // 379 XP is 79 into level 3, which runs from 300 to 600.
   expect((await ui.find({ type: 'Text', text: /^[█░]+$/ }))?.text).toMatch(/^█{5}░{15}$/)
   expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe('79/300 XP')
@@ -397,6 +407,7 @@ test('a sheet printed under a former class name still draws', async ($, on) => {
 
   // It keeps the name it was printed with.
   expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 6 Berserker')
+  expect(classColorOf(await ui.find({ type: 'Text', text: /^Level/ }))).toBe('error')
   // Its class deed is starred under the class's new name, Warrior.
   expect((await ui.find({ type: 'Text', text: /★/ }))?.text).toMatch(/^★ Battles/)
   await ui.unmount()
