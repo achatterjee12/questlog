@@ -17,8 +17,8 @@ little. How much each is worth is for you to find out as you play.
 
 Your hero starts as a **Novice**. Once they've done enough deeds, their
 class becomes whichever deed they do most: **Artificer** (crafting),
-**Berserker** (battle), **Ranger** (scouting), **Sage** (lore) or
-**Summoner** (summoning). The class can change as the session goes on.
+**Barbarian** (battle), **Rogue** (scouting), **Wizard** (lore) or
+**Necromancer** (summoning). The class can change as the session goes on.
 
 Each session (one conversation) gets its own hero. The hero is saved under
 the session's ID, so closing Claude Code and resuming the conversation later

@@ -163,6 +163,9 @@ test('a resumed session gets its saved hero back', async ($, on) => {
   await $.tool.call({ tool: 'Bash', command: 'ls' })
 
   const { text, ui } = await questlog($, '', 'desktop')
+  // Saved as a Berserker, the class's name before it was renamed.
+  expect(text).toMatch(/^⚔ Dagny · Level 3 Barbarian\n/)
+  expect((store.get('hero:s1') as { heroClass: string }).heroClass).toBe('Barbarian')
   expect(text).toMatch(/\n█{5}░{15} 79\/300 XP\n/)
   expect((await ui.find({ type: 'Text', text: /Dagny$/ }))?.text).toBe('⚔ Dagny')
   // 379 XP is 79 into level 3, which runs from 300 to 600.
@@ -236,7 +239,7 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
   expect(help).toMatch(/^Questlog turns .* finished turns are quests\.\n/)
   expect(help).toMatch(/crafting, battle, scouting, lore and summoning/)
   expect(help).toMatch(/\/questlog codex/)
-  expect(help).toMatch(/\nSummoner · most summoning\n/)
+  expect(help).toMatch(/\nNecromancer · most summoning\n/)
   expect(help).not.toMatch(/\d/)
   expect(help).not.toMatch(/Leveling/)
 
@@ -318,4 +321,24 @@ test('/questlog rename renames this session\'s hero', async ($, on) => {
   expect(await run('rename')).toBe('Usage: /questlog rename <name>')
   expect(await run('rename ' + 'x'.repeat(25))).toBe("A hero's name can be at most 24 characters.")
   expect((store.get('hero:s1') as { name: string; xp: number }).xp).toBe(0)
+})
+
+test('a sheet printed under a former class name still draws', async ($, on) => {
+  engine(on)
+  const text = [
+    'questlog: ⚔ Ulla · Level 6 Berserker',
+    '█░░░░░░░░░░░░░░░░░░░ 20/600 XP',
+    'Crafted 12 · Battles 54 · Scouted 0 · Lore 34 · Summons 0',
+    'Quests 20 · Fumbles 5',
+  ].join('\n')
+  const ui = await $.ui.mount({
+    plugin: 'questlog',
+    component: 'CommandOutput',
+    props: { command: 'questlog', args: '', text, isErrored: false },
+    surface: 'desktop',
+  })
+
+  // It keeps the name it was printed with.
+  expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 6 Berserker')
+  await ui.unmount()
 })

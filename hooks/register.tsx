@@ -13,6 +13,7 @@ import {
   MAX_NAME_LENGTH,
   newHero,
   summary,
+  withCurrentClass,
 } from './game'
 import { registerHelp } from './help'
 import { registerSheet, sheetText } from './sheet'
@@ -20,10 +21,10 @@ import { registerSheet, sheetText } from './sheet'
 // The live copy of the hero. It lasts only as long as the process,
 // so every change is also saved to the store under the session's id, which
 // outlives an app restart and comes back when the session is resumed.
-// Change the tag when Hero's fields change: it declines what an earlier
+// Change the tag when Hero's fields or class names change: it declines what an earlier
 // version stored, which outlives a reload.
 const hero = atom({ plugin: 'questlog', key: 'hero' } as const, null, {
-  shape: 'hero-2',
+  shape: 'hero-3',
 })
 
 const STATUS_KEY = 'statusLine'
@@ -47,7 +48,7 @@ async function loadHero($: EngineInterface): Promise<Hero> {
 
   const saved = await $.store.get(heroKey(sessionId))
   const [seed] = crypto.getRandomValues(new Uint32Array(1))
-  const loaded = isHeroOf(saved, sessionId) ? saved : newHero(sessionId, seed ?? 0)
+  const loaded = isHeroOf(saved, sessionId) ? withCurrentClass(saved) : newHero(sessionId, seed ?? 0)
 
   return update($, hero, current =>
     current !== null && current.sessionId === sessionId ? current : loaded,

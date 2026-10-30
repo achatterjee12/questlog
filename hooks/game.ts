@@ -29,10 +29,10 @@ export const XP_PER_FUMBLE = 2
 
 const CLASS_BY_DEED: Record<Exclude<Deed, 'misc'>, HeroClass> = {
   craft: 'Artificer',
-  battle: 'Berserker',
-  scout: 'Ranger',
-  lore: 'Sage',
-  summon: 'Summoner',
+  battle: 'Barbarian',
+  scout: 'Rogue',
+  lore: 'Wizard',
+  summon: 'Necromancer',
 }
 
 // A hero stays a Novice until they have done this many classed deeds.
@@ -96,6 +96,12 @@ export function classFor(deeds: Hero['deeds']): HeroClass {
   const top = ranked[0]
 
   return top === undefined ? 'Novice' : CLASS_BY_DEED[top.deed]
+}
+
+// A saved hero with the class its deeds earn under today's rules, so one
+// saved before a class was renamed comes back under the new name.
+export function withCurrentClass(hero: Hero): Hero {
+  return { ...hero, heroClass: classFor(hero.deeds) }
 }
 
 export function newHero(sessionId: string, seed: number): Hero {

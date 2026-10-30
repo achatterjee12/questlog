@@ -3,10 +3,10 @@ export type Deed = 'craft' | 'battle' | 'scout' | 'lore' | 'summon' | 'misc'
 export type HeroClass =
   | 'Novice'
   | 'Artificer'
-  | 'Berserker'
-  | 'Ranger'
-  | 'Sage'
-  | 'Summoner'
+  | 'Barbarian'
+  | 'Rogue'
+  | 'Wizard'
+  | 'Necromancer'
 
 export type Hero = {
   sessionId: string

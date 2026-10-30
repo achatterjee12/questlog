@@ -22,15 +22,29 @@ const DEEDS: readonly (readonly [Exclude<Deed, 'misc'>, string, number])[] = [
 const CLASS_COLORS: Record<HeroClass, number> = {
   Novice: 0xadb5bd,
   Artificer: 0xffa94d,
-  Berserker: 0xff6b6b,
-  Ranger: 0x69db7c,
-  Sage: 0x74c0fc,
-  Summoner: 0xb197fc,
+  Barbarian: 0xff6b6b,
+  Rogue: 0x69db7c,
+  Wizard: 0x74c0fc,
+  Necromancer: 0xb197fc,
+}
+
+// What classes were called before they were renamed: a sheet printed back
+// then still draws, in its new class's color, under the name it shows.
+const FORMER_CLASSES: Record<string, HeroClass> = {
+  Berserker: 'Barbarian',
+  Ranger: 'Rogue',
+  Sage: 'Wizard',
+  Summoner: 'Necromancer',
+}
+
+function colorOf(heroClass: string): number | undefined {
+  return CLASS_COLORS[(FORMER_CLASSES[heroClass] ?? heroClass) as HeroClass]
 }
 
 // What the sheet shows, and all the drawing needs. XP counts within the
 // current level: gained since the last level up, of what this level takes.
-type Snapshot = Pick<Hero, 'name' | 'heroClass' | 'level' | 'quests' | 'fumbles'> & {
+type Snapshot = Pick<Hero, 'name' | 'level' | 'quests' | 'fumbles'> & {
+  heroClass: string
   gained: number
   needed: number
   deeds: Record<Exclude<Deed, 'misc'>, number>
@@ -59,7 +73,7 @@ export function sheetText(hero: Hero): string {
 export function parseSheet(text: string): Snapshot | null {
   const head = text.match(/⚔ (.+?) · Level (\d+) (\w+)$/m)
   const xp = text.match(/ (\d+)\/(\d+) XP$/m)
-  if (head === null || xp === null || !(head[3]! in CLASS_COLORS)) {
+  if (head === null || xp === null || colorOf(head[3]!) === undefined) {
     return null
   }
 
@@ -67,7 +81,7 @@ export function parseSheet(text: string): Snapshot | null {
 
   return {
     name: head[1]!,
-    heroClass: head[3] as HeroClass,
+    heroClass: head[3]!,
     level: Number(head[2]),
     gained: Number(xp[1]),
     needed: Number(xp[2]),
@@ -85,7 +99,7 @@ export function registerSheet(on: On) {
     }
 
     const { Box, Text } = $.ui.resolve(e)
-    const classColor = CLASS_COLORS[sheet.heroClass]
+    const classColor = colorOf(sheet.heroClass) ?? CLASS_COLORS.Novice
     const filled = filledCells(sheet.gained, sheet.needed)
     const most = Math.max(1, ...DEEDS.map(([deed]) => sheet.deeds[deed]))
     const gradient = (text: string, start: number, end: number) =>
