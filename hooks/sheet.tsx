@@ -6,7 +6,7 @@ import type { On } from 'claude-code'
 
 import type { Deed, Hero, HeroClass } from '../types'
 import { gradientColors, hex } from './colors'
-import { levelProgress } from './game'
+import { classProgress, levelProgress } from './game'
 
 const BAR_WIDTH = 20
 const DEED_BAR_WIDTH = 10
@@ -103,7 +103,10 @@ export function registerSheet(on: On) {
     const { Box, Text } = $.ui.resolve(e)
     const classColor = colorOf(sheet.heroClass) ?? CLASS_COLORS.Adventurer
     const filled = filledCells(sheet.gained, sheet.needed)
-    const most = Math.max(1, ...DEEDS.map(([deed]) => sheet.deeds[deed]))
+    // Each deed's bar is its progress toward its class, so the longest bar is
+    // the class the hero is closest to, or has.
+    const progress = classProgress({ ...sheet.deeds, misc: 0 })
+    const most = Math.max(1, ...DEEDS.map(([deed]) => progress[deed]))
     const gradient = (text: string, start: number, end: number) =>
       gradientColors(text, start, end).map(([ch, color]) => <Text color={color}>{ch}</Text>)
 
@@ -134,7 +137,7 @@ export function registerSheet(on: On) {
             <Text dimColor={n === 0}>
               {label.padEnd(9)}
               {String(n).padStart(3)}{' '}
-              <Text color={hex(color)}>{'▰'.repeat(Math.round((n / most) * DEED_BAR_WIDTH))}</Text>
+              <Text color={hex(color)}>{'▰'.repeat(Math.round((progress[deed] / most) * DEED_BAR_WIDTH))}</Text>
             </Text>
           )
         })}

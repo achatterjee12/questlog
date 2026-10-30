@@ -1,6 +1,9 @@
 import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
+import { CLASS_TARGETS, XP_PER_DEED, XP_PER_LEVEL_STEP, XP_PER_QUEST } from '../hooks/balance'
+import { classFor, levelFor, levelProgress, xpForLevel } from '../hooks/game'
+
 const PANE = {
   plugin: 'questlog',
   component: 'Pane',
@@ -72,17 +75,26 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
   engine(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  // 8 edits at 15 XP each: 120 XP, 20 past level 2's 100 of the 200 it takes.
-  for (let i = 0; i < 8; i += 1) {
+  // Exactly the edits Artificer takes, each earning crafting's XP.
+  const edits = CLASS_TARGETS.craft
+  for (let i = 0; i < edits; i += 1) {
     await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
   }
+  const xp = edits * XP_PER_DEED.craft
+  const level = levelFor(xp)
+  const { gained, needed } = levelProgress({ xp, level })
+  const filled = Math.round((gained / needed) * 20)
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const { ui } = await questlog($, '', surface)
 
-    expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 2 Artificer')
-    expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/^█{2}░{18} 20\/200 XP$/)
-    expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toMatch(/^Crafted\s+8 ▰{10}$/)
+    expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe(`Level ${level} Artificer`)
+    expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe(
+      `${'█'.repeat(filled)}${'░'.repeat(20 - filled)} ${gained}/${needed} XP`,
+    )
+    expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toMatch(
+      new RegExp(`^Crafted\\s+${edits} ▰{10}$`),
+    )
     await ui.unmount()
   }
 })
@@ -118,7 +130,7 @@ test('a sheet behind the engine\'s "questlog: " label still draws', async ($, on
   })
 
   expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 1 Adventurer')
-  expect((await ui.find({ type: 'Text', text: /^Battles/ }))?.text).toMatch(/^Battles\s+1 ▰{10}$/)
+  expect((await ui.find({ type: 'Text', text: /^Battles/ }))?.text).toMatch(/^Battles\s+1\b/)
   expect(await ui.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
   await ui.unmount()
 })
@@ -153,7 +165,7 @@ test('a resumed session gets its saved hero back', async ($, on) => {
     heroClass: 'Berserker',
     level: 3,
     xp: 369,
-    deeds: { craft: 0, battle: 10, scout: 0, lore: 2, summon: 0, misc: 1 },
+    deeds: { craft: 0, battle: CLASS_TARGETS.battle + 10, scout: 0, lore: 2, summon: 0, misc: 1 },
     quests: 10,
     fumbles: 0,
   }
@@ -256,16 +268,20 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
   expect(help).toMatch(/^Questlog turns .* finished turns are quests\.\n/)
   expect(help).toMatch(/crafting, battle, scouting, lore and summoning/)
   expect(help).toMatch(/\/questlog codex/)
-  expect(help).toMatch(/\nNecromancer · most summoning\n/)
+  expect(help).toMatch(/\nNecromancer · from summoning\n/)
   expect(help).not.toMatch(/\d/)
   expect(help).not.toMatch(/Leveling/)
 
   // The codex has every amount, the class threshold and the formula.
-  expect(codex).toMatch(/\nCrafting · 15 XP · Edit, Write, NotebookEdit\n/)
-  expect(codex).toMatch(/\nQuest · 25 XP · each finished turn\n/)
-  expect(codex).toMatch(/Adventurer until you've done 5 deeds/)
-  expect(codex).toMatch(/takes 100 × L XP/)
-  expect(codex).toMatch(/\nLevel 3 · 200 XP after level 2 · 300 XP in all\n/)
+  // Every number comes from balance.ts.
+  expect(codex).toContain(`\nCrafting · ${XP_PER_DEED.craft} XP · Edit, Write, NotebookEdit\n`)
+  expect(codex).toContain(`\nQuest · ${XP_PER_QUEST} XP · each finished turn\n`)
+  expect(codex).toContain(`takes ${XP_PER_LEVEL_STEP} × L XP`)
+  expect(codex).toContain(
+    `\nLevel 3 · ${xpForLevel(3) - xpForLevel(2)} XP after level 2 · ${xpForLevel(3)} XP in all\n`,
+  )
+  expect(codex).toContain(`\nNecromancer · summoning · ${CLASS_TARGETS.summon} deeds\n`)
+  expect(codex).toContain(`\nRanger · scouting · ${CLASS_TARGETS.scout} deeds\n`)
   for (const text of [help, codex]) {
     expect(text).not.toMatch(/  /)
   }
@@ -275,14 +291,14 @@ test('/questlog help keeps the numbers back and the codex reveals them', async (
     for (const heading of ['Earning XP', 'Classes', 'Commands']) {
       expect((await short.find({ type: 'Text', text: heading }))?.props?.weight).toBe('bold')
     }
-    expect(await short.find({ type: 'Text', text: '15 XP' })).toBeUndefined()
+    expect(await short.find({ type: 'Text', text: `${XP_PER_DEED.craft} XP` })).toBeUndefined()
     expect(await short.find({ type: 'Text', text: 'Leveling' })).toBeUndefined()
     expect(await short.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
     await short.unmount()
 
     const full = await draw('codex', codex, surface)
     expect((await full.find({ type: 'Text', text: 'Leveling' }))?.props?.weight).toBe('bold')
-    expect(await full.find({ type: 'Text', text: '15 XP' })).toBeDefined()
+    expect(await full.find({ type: 'Text', text: `${XP_PER_DEED.craft} XP` })).toBeDefined()
     // Commands are drawn in a code font; other first columns are not.
     expect((await full.find({ type: 'Text', text: '/questlog codex' }))?.props?.mono).toBe(true)
     expect((await full.find({ type: 'Text', text: 'Crafting' }))?.props?.mono).toBeUndefined()
@@ -358,4 +374,30 @@ test('a sheet printed under a former class name still draws', async ($, on) => {
   // It keeps the name it was printed with.
   expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 6 Berserker')
   await ui.unmount()
+})
+
+test('the class is the kind of deed furthest along on its target', () => {
+  const deeds = (counts: Partial<Record<'craft' | 'battle' | 'scout' | 'lore' | 'summon', number>>) => ({
+    craft: 0,
+    battle: 0,
+    scout: 0,
+    lore: 0,
+    summon: 0,
+    misc: 0,
+    ...counts,
+  })
+  const { scout, battle, craft, summon } = CLASS_TARGETS
+
+  // An Adventurer until some kind reaches its target, however many deeds.
+  expect(classFor(deeds({ scout: scout - 1, battle: battle - 1, craft: craft - 1 }))).toBe('Adventurer')
+  expect(classFor(deeds({ scout }))).toBe('Ranger')
+
+  // A rare kind wins on far fewer deeds: progress, not the count, decides.
+  expect(classFor(deeds({ scout: scout + 1, summon: summon * 2 }))).toBe('Necromancer')
+  expect(scout + 1).toBeGreaterThan(summon * 2)
+
+  // On a tie the hero keeps the class they have.
+  const tied = deeds({ scout, battle })
+  expect(classFor(tied, 'Warrior')).toBe('Warrior')
+  expect(classFor(tied, 'Ranger')).toBe('Ranger')
 })

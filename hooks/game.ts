@@ -1,5 +1,8 @@
 // The rules of the game: plain functions, no engine calls.
 import type { Deed, Hero, HeroClass } from '../types'
+import { CLASS_TARGETS, XP_PER_DEED, XP_PER_FUMBLE, XP_PER_LEVEL_STEP, XP_PER_QUEST } from './balance'
+
+export { CLASS_TARGETS, XP_PER_DEED, XP_PER_FUMBLE, XP_PER_LEVEL_STEP, XP_PER_QUEST }
 
 const DEEDS_BY_TOOL: Record<string, Deed> = {
   Edit: 'craft',
@@ -15,18 +18,6 @@ const DEEDS_BY_TOOL: Record<string, Deed> = {
   Task: 'summon',
 }
 
-export const XP_PER_DEED: Record<Deed, number> = {
-  craft: 15,
-  battle: 10,
-  scout: 5,
-  lore: 8,
-  summon: 20,
-  misc: 3,
-}
-
-export const XP_PER_QUEST = 25
-export const XP_PER_FUMBLE = 2
-
 const CLASS_BY_DEED: Record<Exclude<Deed, 'misc'>, HeroClass> = {
   craft: 'Artificer',
   battle: 'Warrior',
@@ -34,9 +25,6 @@ const CLASS_BY_DEED: Record<Exclude<Deed, 'misc'>, HeroClass> = {
   lore: 'Wizard',
   summon: 'Necromancer',
 }
-
-// A hero stays an Adventurer until they have done this many classed deeds.
-const DEEDS_TO_EARN_CLASS = 5
 
 const NAMES = [
   'Aldric', 'Brynn', 'Cael', 'Dagny', 'Eamon', 'Fenna', 'Gorm', 'Hesper',
@@ -67,10 +55,10 @@ export function deedOf(tool: string): Deed {
   return DEEDS_BY_TOOL[tool] ?? 'misc'
 }
 
-// Reaching level L takes 50 * L * (L - 1) XP in total, so each level costs
-// 100 XP more than the one before it.
+// Going from level L to L+1 takes XP_PER_LEVEL_STEP × L XP, so reaching
+// level L takes XP_PER_LEVEL_STEP × L × (L − 1) / 2 in all.
 export function xpForLevel(level: number): number {
-  return 50 * level * (level - 1)
+  return (XP_PER_LEVEL_STEP * level * (level - 1)) / 2
 }
 
 // How far into the current level a hero is: XP gained since the last level
@@ -90,25 +78,39 @@ export function levelFor(xp: number): number {
   return level
 }
 
-export function classFor(deeds: Hero['deeds']): HeroClass {
-  const ranked = (Object.keys(CLASS_BY_DEED) as Exclude<Deed, 'misc'>[])
-    .map(deed => ({ deed, count: deeds[deed] }))
-    .sort((a, b) => b.count - a.count)
-  const total = ranked.reduce((sum, one) => sum + one.count, 0)
+// How far along a hero is on each kind of deed toward its class: count ÷
+// target, so 1 is the target reached. Rare kinds have small targets, so
+// each of their deeds counts for more.
+export function classProgress(deeds: Hero['deeds']): Record<Exclude<Deed, 'misc'>, number> {
+  const kinds = Object.keys(CLASS_TARGETS) as Exclude<Deed, 'misc'>[]
 
-  if (total < DEEDS_TO_EARN_CLASS) {
+  return Object.fromEntries(kinds.map(deed => [deed, deeds[deed] / CLASS_TARGETS[deed]])) as Record<
+    Exclude<Deed, 'misc'>,
+    number
+  >
+}
+
+// The class a hero's deeds earn: an Adventurer until some kind reaches its
+// target, then the kind they are furthest along on. On a tie the hero keeps
+// `current`, so the class doesn't flicker between two.
+export function classFor(deeds: Hero['deeds'], current: HeroClass = 'Adventurer'): HeroClass {
+  const progress = classProgress(deeds)
+  const ranked = (Object.keys(progress) as Exclude<Deed, 'misc'>[]).sort((a, b) => progress[b] - progress[a])
+  const top = ranked[0]
+  if (top === undefined || progress[top] < 1) {
     return 'Adventurer'
   }
 
-  const top = ranked[0]
+  const tied = ranked.filter(deed => progress[deed] === progress[top])
+  const kept = tied.find(deed => CLASS_BY_DEED[deed] === current)
 
-  return top === undefined ? 'Adventurer' : CLASS_BY_DEED[top.deed]
+  return CLASS_BY_DEED[kept ?? top]
 }
 
 // A saved hero with the class its deeds earn under today's rules, so one
-// saved before a class was renamed comes back under the new name.
+// saved before a class was renamed or rebalanced comes back right.
 export function withCurrentClass(hero: Hero): Hero {
-  return { ...hero, heroClass: classFor(hero.deeds) }
+  return { ...hero, heroClass: classFor(hero.deeds, hero.heroClass) }
 }
 
 export function newHero(sessionId: string, seed: number): Hero {
@@ -153,7 +155,7 @@ export function afterDeed(hero: Hero, deed: Deed, isFumble: boolean): Hero {
 
   const deeds = { ...hero.deeds, [deed]: hero.deeds[deed] + 1 }
 
-  return withXp({ ...hero, deeds, heroClass: classFor(deeds) }, XP_PER_DEED[deed])
+  return withXp({ ...hero, deeds, heroClass: classFor(deeds, hero.heroClass) }, XP_PER_DEED[deed])
 }
 
 export function afterQuest(hero: Hero): Hero {
@@ -220,7 +222,7 @@ export function helpSections(isCodex: boolean): HelpSection[] {
       ? [
           {
             heading: 'Leveling',
-            note: 'Going from level L to level L+1 takes 100 × L XP, so reaching level L takes 50 × L × (L − 1) XP in all.',
+            note: `Going from level L to level L+1 takes ${XP_PER_LEVEL_STEP} × L XP, so reaching level L takes ${XP_PER_LEVEL_STEP / 2} × L × (L − 1) XP in all.`,
             rows: levels,
           },
         ]
@@ -228,9 +230,13 @@ export function helpSections(isCodex: boolean): HelpSection[] {
     {
       heading: 'Classes',
       note: isCodex
-        ? `You're an Adventurer until you've done ${DEEDS_TO_EARN_CLASS} deeds. Then your class is whichever deed you have done most, and it can change as you go.`
-        : "You start as an Adventurer. Once you've done enough deeds, your class is whichever deed you do most, and it can change as you go.",
-      rows: classed.map(deed => [CLASS_BY_DEED[deed], `most ${DEED_NAMES[deed].toLowerCase()}`]),
+        ? "Each class has a target number of deeds. You're an Adventurer until one kind of deed reaches its target; then your class is the kind you're furthest along on, its count divided by its target, so rarer deeds count for more. It can change as you go, and on a tie you keep the class you have."
+        : "You start as an Adventurer. Once you've done enough of one kind of deed, your class is the kind you lean on most, with rarer deeds counting for more, and it can change as you go.",
+      rows: classed.map(deed =>
+        isCodex
+          ? [CLASS_BY_DEED[deed], DEED_NAMES[deed].toLowerCase(), `${CLASS_TARGETS[deed]} deeds`]
+          : [CLASS_BY_DEED[deed], `from ${DEED_NAMES[deed].toLowerCase()}`],
+      ),
     },
     {
       heading: 'Commands',
@@ -240,7 +246,7 @@ export function helpSections(isCodex: boolean): HelpSection[] {
         ['/questlog status [on|off]', 'show, hide or toggle the status line'],
         ['/questlog rename <name>', "rename this session's hero"],
         ['/questlog help', 'how Questlog plays, without the numbers'],
-        ['/questlog codex', 'every number: XP per deed, the class threshold, leveling'],
+        ['/questlog codex', 'every number: XP per deed, class targets, leveling'],
         ['/questlog gallery', 'show off what the pane can draw'],
       ],
     },

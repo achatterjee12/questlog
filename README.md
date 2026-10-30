@@ -15,10 +15,11 @@ summoning when it calls on a subagent. Each turn it finishes is a quest,
 worth XP of its own, and even a tool call that fails teaches the hero a
 little. How much each is worth is for you to find out as you play.
 
-Your hero starts as an **Adventurer**. Once they've done enough deeds, their
-class becomes whichever deed they do most: **Artificer** (crafting),
-**Warrior** (battle), **Ranger** (scouting), **Wizard** (lore) or
-**Necromancer** (summoning). The class can change as the session goes on.
+Your hero starts as an **Adventurer**. Once they've done enough of one kind
+of deed, their class becomes the kind they lean on most: **Artificer**
+(crafting), **Warrior** (battle), **Ranger** (scouting), **Wizard** (lore)
+or **Necromancer** (summoning). Rarer deeds count for more, so every class
+is about as likely, and the class can change as the session goes on.
 
 Each session (one conversation) gets its own hero. The hero is saved under
 the session's ID, so closing Claude Code and resuming the conversation later
@@ -31,54 +32,51 @@ new hero. The 500 most recently started heroes are kept.
 | --- | --- |
 | `/questlog` | Print the character sheet as it stands |
 | `/questlog help` | Explain how it plays, without giving away any numbers |
-| `/questlog codex` | Reveal every number: XP per deed, the class threshold, leveling |
+| `/questlog codex` | Reveal every number: XP per deed, class targets, leveling |
 | `/questlog rename <name>` | Give this session's hero a new name, up to 24 characters |
 | `/questlog status [on\|off]` | Hide, show or toggle the status-line summary; remembered across sessions |
 | `/questlog gallery` | Open a pane showing off what a plugin can draw |
 
 ## The codex
 
-Everything `/questlog codex` reveals. Skip it if you'd rather find out by
-playing.
+How the numbers work, which `/questlog codex` shows in full in a session.
+Skip it if you'd rather find out by playing.
 
 <details>
-<summary>Show the numbers (spoilers)</summary>
+<summary>Show how the numbers work (spoilers)</summary>
 
-### XP for each deed
+Every number lives in [`hooks/balance.ts`](hooks/balance.ts), which the
+scoring, the character sheet and `/questlog codex` all read, so the codex in
+a session always matches the code. This section names the constants rather
+than repeating their values.
 
-| Deed | Tools | XP |
-| --- | --- | --- |
-| Crafting | Edit, Write, NotebookEdit | 15 |
-| Battle | Bash | 10 |
-| Scouting | Read, Grep, Glob | 5 |
-| Lore | WebSearch, WebFetch, MCP tools | 8 |
-| Summoning | Agent, Task | 20 |
-| Anything else | other tools | 3 |
-| Quest | each finished turn | 25 |
-| Fumble | a tool call that errors, in place of its deed | 2 |
+### XP
 
-### Classes
-
-A hero is an Adventurer until they have done 5 deeds of the five classed kinds
-(anything else doesn't count). From then on, their class is whichever of
-those deeds they have done most.
+Each kind of deed earns the XP `XP_PER_DEED` sets for it. Which tools make
+which deed: crafting is Edit, Write and NotebookEdit; battle is Bash;
+scouting is Read, Grep and Glob; lore is WebSearch, WebFetch and MCP
+connectors; summoning is Agent and Task. Everything else, including the
+desktop app's own tools (`mcp__ccd_…`), is "anything else". A finished turn
+earns `XP_PER_QUEST`, and a tool call that errors earns `XP_PER_FUMBLE` in
+place of its deed's XP.
 
 ### Leveling
 
-Going from level L to level L+1 takes 100 × L XP, so reaching level L takes
-50 × L × (L − 1) XP in all.
+Each level costs `XP_PER_LEVEL_STEP` more than the one before: going from
+level L to L+1 takes `XP_PER_LEVEL_STEP` × L XP, so reaching level L takes
+`XP_PER_LEVEL_STEP` × L × (L − 1) ÷ 2 in all. The character sheet and the
+status line count XP within the current level: gained since the last level
+up, out of what that level takes.
 
-| Level | XP after the previous level | XP in all |
-| --- | --- | --- |
-| 2 | 100 | 100 |
-| 3 | 200 | 300 |
-| 4 | 300 | 600 |
-| 5 | 400 | 1000 |
-| 6 | 500 | 1500 |
-| 7 | 600 | 2100 |
+### Classes
 
-The character sheet and the status line count XP within the current level:
-gained since the last level up, out of what that level takes.
+`CLASS_TARGETS` gives each kind of deed a target. A hero's progress on a
+kind is its count divided by its target, and the class is the kind with
+the most progress. A hero is an Adventurer until some kind reaches its
+target (progress 1). On a tie the hero keeps the class they have. The
+targets are set in proportion to how often each kind of deed comes up in a
+typical session, so common deeds such as reading files need many more than
+rare ones such as calling a subagent, and each class is about as likely.
 
 </details>
 
@@ -113,7 +111,8 @@ claude plugin validate .
 claude plugin test .
 ```
 
-The rules and the help text live in `hooks/game.ts`, the character sheet
+Every balancing number is in `hooks/balance.ts`. The rules and the help
+text live in `hooks/game.ts`, the character sheet
 in `hooks/sheet.tsx`, the drawn help and codex in `hooks/help.tsx`, the
 gallery in `hooks/gallery.tsx`, shared color math in `hooks/colors.ts`, the
 engine wiring in `hooks/register.tsx`, and the per-session state contract
