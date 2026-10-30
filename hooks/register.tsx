@@ -14,9 +14,10 @@ import {
   newHero,
   summary,
   withCurrentClass,
+  withXp,
 } from './game'
 import { registerHelp } from './help'
-import { registerSheet, sheetText } from './sheet'
+import { registerSheet, sheetText, startFill } from './sheet'
 
 // The live copy of the hero. It lasts only as long as the process,
 // so every change is also saved to the store under the session's id, which
@@ -34,6 +35,11 @@ const MAX_SAVED_HEROES = 500
 
 function heroKey(sessionId: string): string {
   return `hero:${sessionId}`
+}
+
+// The XP the last sheet of the session showed, which the next one fills from.
+function shownKey(sessionId: string): string {
+  return `shown:${sessionId}`
 }
 
 // The hero of the session running now: the live copy, else the saved one,
@@ -66,6 +72,7 @@ async function saveHero($: EngineInterface, current: Hero) {
   const all = [...known, current.sessionId]
   for (const old of all.slice(0, Math.max(0, all.length - MAX_SAVED_HEROES))) {
     await $.store.delete(heroKey(old))
+    await $.store.delete(shownKey(old))
   }
   await $.store.set(HERO_IDS_KEY, all.slice(-MAX_SAVED_HEROES))
 }
@@ -140,6 +147,16 @@ export const register: Register = on => {
 
       return { text: `${before} is now known as ${name}.` }
     }
+    // TEMPORARY, for trying out the XP bar's fill: remove before release.
+    if (sub === 'add') {
+      const xp = Number(value)
+      if (!Number.isInteger(xp) || xp < 1) {
+        return { text: 'Usage: /questlog add <xp>' }
+      }
+      await gain($, current => withXp(current, xp))
+
+      return { text: `Added ${xp} XP.` }
+    }
     if (sub === 'gallery') {
       const opened = await openGallery($)
 
@@ -160,7 +177,14 @@ export const register: Register = on => {
       return { text: `Status line ${isOn ? 'on' : 'off'}.` }
     }
 
-    return { text: sheetText(await loadHero($)) }
+    // The first sheet of a session fills from the hero's start.
+    const current = await loadHero($)
+    const shown = await $.store.get(shownKey(current.sessionId))
+    const from = typeof shown === 'number' ? Math.min(shown, current.xp) : 0
+    await $.store.set(shownKey(current.sessionId), current.xp)
+    await startFill($, from, current.xp)
+
+    return { text: sheetText(current, current.xp - from) }
   })
 
   on('tool.call', async ($, e, next) => {

@@ -142,7 +142,7 @@ export function isHeroOf(value: unknown, sessionId: string): value is Hero {
   )
 }
 
-function withXp(hero: Hero, xp: number): Hero {
+export function withXp(hero: Hero, xp: number): Hero {
   const total = hero.xp + xp
 
   return { ...hero, xp: total, level: levelFor(total) }

@@ -2,6 +2,7 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { CLASS_TARGETS, XP_PER_DEED, XP_PER_LEVEL_STEP, XP_PER_QUEST } from '../hooks/balance'
+import { fillDuration, fillFrame } from '../hooks/fill'
 import { classFor, levelFor, levelProgress, xpForLevel } from '../hooks/game'
 
 const PANE = {
@@ -53,6 +54,9 @@ function engine(
   return store
 }
 
+// Long enough for any sheet's bar to finish filling.
+const SETTLED_MS = 60_000
+
 // Runs /questlog with `args` and draws its output row as the transcript would.
 async function questlog(
   $: Parameters<Parameters<typeof test>[1]>[0],
@@ -73,6 +77,7 @@ async function questlog(
 
 test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
   engine(on)
+  const clock = mock.clock(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   // Exactly the edits Artificer takes, each earning crafting's XP.
@@ -87,11 +92,13 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
 
   for (const surface of ['terminal', 'desktop'] as const) {
     const { ui } = await questlog($, '', surface)
+    await clock.advance(SETTLED_MS)
 
     expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe(`Level ${level} Artificer`)
-    expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe(
-      `${'█'.repeat(filled)}${'░'.repeat(20 - filled)} ${gained}/${needed} XP`,
+    expect((await ui.find({ type: 'Text', text: /^[█░]+$/ }))?.text).toBe(
+      `${'█'.repeat(filled)}${'░'.repeat(20 - filled)}`,
     )
+    expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe(`${gained}/${needed} XP`)
     expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toMatch(
       new RegExp(`^Crafted\\s+${edits} ▰{10}$`),
     )
@@ -101,16 +108,18 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
 
 test('the sheet is a snapshot that reads as plain text too', async ($, on) => {
   engine(on)
+  const clock = mock.clock(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   const { text, ui } = await questlog($, '', 'desktop')
+  await clock.advance(SETTLED_MS)
   await $.tool.call({ tool: 'Edit', file_path: '/a', old_string: 'a', new_string: 'b' })
 
   // Plain, it still reads as a sheet after the engine's "questlog: " label.
-  expect(text).toMatch(/^⚔ \w+ · Level 1 Adventurer\n.* 0\/100 XP\n/)
+  expect(text).toMatch(/^⚔ \w+ · Level 1 Adventurer\n.* 0\/100 XP · \+0 XP\n/)
   expect(text).toMatch(/\nCrafted 0 · Battles 0 · Scouted 0 · Lore 0 · Summons 0\n/)
   // The row drawn earlier keeps what it showed.
-  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/ 0\/100 XP$/)
+  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe('0/100 XP')
   await ui.unmount()
 })
 
@@ -170,18 +179,21 @@ test('a resumed session gets its saved hero back', async ($, on) => {
     fumbles: 0,
   }
   const store = engine(on, { saved: { 'hero:s1': saved } })
+  const clock = mock.clock(on)
 
   await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
   await $.tool.call({ tool: 'Bash', command: 'ls' })
 
   const { text, ui } = await questlog($, '', 'desktop')
+  await clock.advance(SETTLED_MS)
   // Saved as a Berserker, the class's name before it was renamed.
   expect(text).toMatch(/^⚔ Dagny · Level 3 Warrior\n/)
   expect((store.get('hero:s1') as { heroClass: string }).heroClass).toBe('Warrior')
-  expect(text).toMatch(/\n█{5}░{15} 79\/300 XP\n/)
+  expect(text).toMatch(/\n█{5}░{15} 79\/300 XP · \+379 XP\n/)
   expect((await ui.find({ type: 'Text', text: /Dagny$/ }))?.text).toBe('⚔ Dagny')
   // 379 XP is 79 into level 3, which runs from 300 to 600.
-  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toMatch(/^█{5}░{15} 79\/300 XP$/)
+  expect((await ui.find({ type: 'Text', text: /^[█░]+$/ }))?.text).toMatch(/^█{5}░{15}$/)
+  expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe('79/300 XP')
   await ui.unmount()
   expect((store.get('hero:s1') as { xp: number }).xp).toBe(379)
 })
@@ -400,4 +412,105 @@ test('the class is the kind of deed furthest along on its target', () => {
   const tied = deeds({ scout, battle })
   expect(classFor(tied, 'Warrior')).toBe('Warrior')
   expect(classFor(tied, 'Ranger')).toBe('Ranger')
+})
+
+test('the bar fills at a pace set by how much was gained', () => {
+  const at = (from: number, to: number, ms: number) => {
+    const frame = fillFrame(from, to, ms)
+
+    return frame && [frame.level, frame.gained, frame.needed, frame.left, frame.isLevelUp]
+  }
+
+  // Nothing gained: +0 XP for two seconds, then the sheet as it stands.
+  expect(at(50, 50, 0)).toEqual([1, 50, 100, 0, false])
+  expect(at(50, 50, 1999)).toEqual([1, 50, 100, 0, false])
+  expect(at(50, 50, 2000)).toBeUndefined()
+
+  // Under a tenth of the bar fills in a second, more in two, the counter
+  // draining as the bar rises; then +0 XP for two seconds.
+  expect(at(0, 8, 500)).toEqual([1, 4, 100, 4, false])
+  expect(at(0, 8, 1000)).toEqual([1, 8, 100, 0, false])
+  expect(fillDuration(0, 8)).toBe(3000)
+  expect(at(0, 50, 1000)).toEqual([1, 25, 100, 25, false])
+  // Every fill eases in and out: slow at either end, quick in the middle.
+  expect(at(0, 50, 500)).toEqual([1, 3, 100, 47, false])
+  expect(at(0, 50, 1500)).toEqual([1, 47, 100, 3, false])
+  expect(fillDuration(0, 50)).toBe(4000)
+
+  // One level up: the old bar at its own pace, two seconds on the level up
+  // with that bar full, then the new bar at its own.
+  expect(at(50, 150, 1000)).toEqual([1, 75, 100, 75, false])
+  expect(at(50, 150, 2000)).toEqual([2, 100, 100, 50, true])
+  expect(at(50, 150, 4000)).toEqual([2, 0, 200, 50, false])
+  expect(at(50, 150, 5000)).toEqual([2, 25, 200, 25, false])
+  expect(fillDuration(50, 150)).toBe(8000)
+  expect(fillDuration(95, 110)).toBe(1000 + 2000 + 1000 + 2000)
+
+  // Several: every completed level in four seconds, the pause, then the
+  // current level at its own pace.
+  expect(at(0, 350, 2000)).toEqual([2, 50, 200, 200, false])
+  expect(at(0, 350, 4000)).toEqual([3, 200, 200, 50, true])
+  expect(at(0, 350, 6000)).toEqual([3, 0, 300, 50, false])
+  expect(fillDuration(0, 350)).toBe(4000 + 2000 + 2000 + 2000)
+})
+
+test('the newest sheet fills its bar from what the last one showed', async ($, on) => {
+  engine(on)
+  on('turn.complete', () => ({ text: '' }))
+  const clock = mock.clock(on)
+  const sheetRow = (text: string, requestId: string) =>
+    $.ui.mount({
+      plugin: 'questlog',
+      component: 'CommandOutput',
+      requestId,
+      props: { command: 'questlog', args: '', text, isErrored: false },
+      surface: 'terminal',
+    })
+  // The XP figure, after the counter above it while there is one.
+  const xpLine = async (ui: Awaited<ReturnType<typeof sheetRow>>) => {
+    const counter = (await ui.find({ type: 'Text', text: /^\+\d+ XP$/ }))?.text
+    const figure = (await ui.find({ type: 'Text', text: /^\d+\/\d+ XP/ }))?.text
+
+    return counter === undefined ? figure : `${figure} ${counter}`
+  }
+  const run = async () =>
+    (await $.command.run({ command: 'questlog', args: '' } as Parameters<typeof $.command.run>[0])).text ?? ''
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  const first = await sheetRow(await run(), 'r1')
+  expect(await xpLine(first)).toBe('0/100 XP +0 XP')
+  await clock.advance(2000)
+  expect(await xpLine(first)).toBe('0/100 XP')
+
+  // A finished turn's XP since: the text says it, and the bar fills with it.
+  await $.turn.complete({ answer: 'Done.', durationMs: 0, isAborted: false, turnId: 't1', reason: 'answer' })
+  const text = await run()
+  expect(text).toMatch(new RegExp(` ${XP_PER_QUEST}/100 XP · \\+${XP_PER_QUEST} XP\\n`))
+  const second = await sheetRow(text, 'r2')
+  expect(await xpLine(second)).toBe(`0/100 XP +${XP_PER_QUEST} XP`)
+  await clock.advance(1000)
+  const half = Math.round(XP_PER_QUEST / 2)
+  expect(await xpLine(second)).toBe(`${half}/100 XP +${XP_PER_QUEST - half} XP`)
+  // The older sheet stays as it was.
+  expect(await xpLine(first)).toBe('0/100 XP')
+  await clock.advance(3000)
+  expect(await xpLine(second)).toBe(`${XP_PER_QUEST}/100 XP`)
+
+  // A sheet printed before sheets told the gain draws as it stands.
+  const old = await sheetRow('⚔ Ulla · Level 1 Adventurer\n█████░░░░░░░░░░░░░░░ 25/100 XP\nQuests 1 · Fumbles 0', 'r3')
+  expect(await xpLine(old)).toBe('25/100 XP')
+})
+
+// TEMPORARY, with /questlog add: remove both together.
+test('/questlog add gives XP, levels included', async ($, on) => {
+  engine(on)
+  on('ui.toast', () => ({ value: undefined }))
+  const run = async (args: string) =>
+    (await $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])).text ?? ''
+
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true })
+  await run('')
+  expect(await run('add 0')).toBe('Usage: /questlog add <xp>')
+  expect(await run('add 150')).toBe('Added 150 XP.')
+  expect(await run('')).toMatch(/· Level 2 .*\n.* 50\/200 XP · \+150 XP\n/)
 })
