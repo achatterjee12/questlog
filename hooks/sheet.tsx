@@ -10,7 +10,7 @@ import type { Deed, Hero, HeroClass } from '../types'
 import { gradientColors, hex } from './colors'
 import { fillDuration, fillFrame } from './fill'
 import type { Frame } from './fill'
-import { classProgress, levelProgress, xpForLevel } from './game'
+import { CLASS_BY_DEED, classProgress, levelProgress, xpForLevel } from './game'
 
 const BAR_WIDTH = 20
 const DEED_BAR_WIDTH = 10
@@ -219,9 +219,13 @@ export function registerSheet(on: On) {
         <Text> </Text>
         {DEEDS.map(([deed, label, color]) => {
           const n = sheet.deeds[deed]
+          // The row of the deed that earned the hero's class, under the name
+          // it has now for a sheet printed before a rename.
+          const isClass = CLASS_BY_DEED[deed] === (FORMER_CLASSES[sheet.heroClass] ?? sheet.heroClass)
 
           return (
-            <Text dimColor={n === 0}>
+            <Text dimColor={n === 0} weight={isClass ? 'bold' : undefined}>
+              {isClass ? '★ ' : '  '}
               {label.padEnd(9)}
               {String(n).padStart(3)}{' '}
               <Text color={hex(color)}>{'▰'.repeat(Math.round((progress[deed] / most) * DEED_BAR_WIDTH))}</Text>

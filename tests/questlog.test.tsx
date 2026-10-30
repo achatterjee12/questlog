@@ -99,9 +99,11 @@ test('deeds earn XP, a class and levels, on every surface', async ($, on) => {
       `${'█'.repeat(filled)}${'░'.repeat(20 - filled)}`,
     )
     expect((await ui.find({ type: 'Text', text: /XP$/ }))?.text).toBe(`${gained}/${needed} XP`)
-    expect((await ui.find({ type: 'Text', text: /^Crafted/ }))?.text).toMatch(
-      new RegExp(`^Crafted\\s+${edits} ▰{10}$`),
-    )
+    // The class's own deed is starred and bold.
+    const crafted = await ui.find({ type: 'Text', text: /Crafted/ })
+    expect(crafted?.text).toMatch(new RegExp(`^★ Crafted\\s+${edits} ▰{10}$`))
+    expect(crafted?.props?.weight).toBe('bold')
+    expect((await ui.find({ type: 'Text', text: /Battles/ }))?.text).toMatch(/^  Battles/)
     await ui.unmount()
   }
 })
@@ -139,7 +141,9 @@ test('a sheet behind the engine\'s "questlog: " label still draws', async ($, on
   })
 
   expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 1 Adventurer')
-  expect((await ui.find({ type: 'Text', text: /^Battles/ }))?.text).toMatch(/^Battles\s+1\b/)
+  // An Adventurer has no class deed to star.
+  expect((await ui.find({ type: 'Text', text: /Battles/ }))?.text).toMatch(/^  Battles\s+1\b/)
+  expect(await ui.find({ type: 'Text', text: /★/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
   await ui.unmount()
 })
@@ -385,6 +389,8 @@ test('a sheet printed under a former class name still draws', async ($, on) => {
 
   // It keeps the name it was printed with.
   expect((await ui.find({ type: 'Text', text: /^Level/ }))?.text).toBe('Level 6 Berserker')
+  // Its class deed is starred under the class's new name, Warrior.
+  expect((await ui.find({ type: 'Text', text: /★/ }))?.text).toMatch(/^★ Battles/)
   await ui.unmount()
 })
 

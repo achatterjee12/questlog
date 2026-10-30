@@ -18,7 +18,7 @@ const DEEDS_BY_TOOL: Record<string, Deed> = {
   Task: 'summon',
 }
 
-const CLASS_BY_DEED: Record<Exclude<Deed, 'misc'>, HeroClass> = {
+export const CLASS_BY_DEED: Record<Exclude<Deed, 'misc'>, HeroClass> = {
   craft: 'Artificer',
   battle: 'Warrior',
   scout: 'Ranger',
