@@ -114,7 +114,7 @@ export const register: Register = on => {
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
-      argumentHint: '[help | rename <name> | status [on|off] | gallery]',
+      argumentHint: '[help | codex | rename <name> | status [on|off] | gallery]',
     })
 
     return next(e)
@@ -122,8 +122,8 @@ export const register: Register = on => {
 
   on('command.run', { command: 'questlog' }, async ($, e) => {
     const [sub, value] = e.args.trim().toLowerCase().split(/\s+/)
-    if (sub === 'help') {
-      return { text: helpText() }
+    if (sub === 'help' || sub === 'codex') {
+      return { text: helpText(sub === 'codex') }
     }
     if (sub === 'rename') {
       // The name keeps the case it was typed in.

@@ -216,43 +216,59 @@ test('/questlog status turns the status line off and on', async ($, on) => {
   expect((await run('status maybe')).text).toBe('Usage: /questlog status [on|off]')
 })
 
-test('/questlog help explains XP and classes', async ($, on) => {
+test('/questlog help keeps the numbers back and the codex reveals them', async ($, on) => {
   engine(on)
-  const run = (args: string) =>
-    $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])
-
-  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
-  const text = (await run('help')).text ?? ''
-
-  // Plain, each sentence is one line and cells are joined, not padded.
-  expect(text).toMatch(/^Questlog turns .* Every tool Claude uses is a deed that earns XP; finished turns are quests\.\n/)
-  expect(text).toMatch(/\nCrafting · 15 XP · Edit, Write, NotebookEdit\n/)
-  expect(text).toMatch(/\nLore · 8 XP · WebSearch, WebFetch, MCP tools\n/)
-  expect(text).toMatch(/\nQuest · 25 XP · each finished turn\n/)
-  expect(text).toMatch(/Novice until you've done 5 deeds/)
-  expect(text).toMatch(/\nSummoner · most summoning\n/)
-  expect(text).not.toMatch(/  /)
-
-  // Drawn, the headings are bold and each cell sits in its own column.
-  for (const surface of ['terminal', 'desktop'] as const) {
-    const ui = await $.ui.mount({
+  const run = async (args: string) =>
+    (await $.command.run({ command: 'questlog', args } as Parameters<typeof $.command.run>[0])).text ?? ''
+  const draw = (args: string, text: string, surface: 'terminal' | 'desktop') =>
+    $.ui.mount({
       plugin: 'questlog',
       component: 'CommandOutput',
-      props: { command: 'questlog', args: 'help', text: `questlog: ${text}`, isErrored: false },
+      props: { command: 'questlog', args, text: `questlog: ${text}`, isErrored: false },
       surface,
     })
-    for (const heading of ['Earning XP', 'Classes', 'Commands']) {
-      expect((await ui.find({ type: 'Text', text: heading }))?.props?.weight).toBe('bold')
-    }
-    expect(await ui.find({ type: 'Text', text: 'Crafting' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '15 XP' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: '/questlog rename <name>' })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
-    await ui.unmount()
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  const help = await run('help')
+  const codex = await run('codex')
+
+  // The help names what earns XP and points to the codex, with no numbers.
+  expect(help).toMatch(/^Questlog turns .* finished turns are quests\.\n/)
+  expect(help).toMatch(/crafting, battle, scouting, lore and summoning/)
+  expect(help).toMatch(/\/questlog codex/)
+  expect(help).toMatch(/\nSummoner · most summoning\n/)
+  expect(help).not.toMatch(/\d/)
+  expect(help).not.toMatch(/Leveling/)
+
+  // The codex has every amount, the class threshold and the formula.
+  expect(codex).toMatch(/\nCrafting · 15 XP · Edit, Write, NotebookEdit\n/)
+  expect(codex).toMatch(/\nQuest · 25 XP · each finished turn\n/)
+  expect(codex).toMatch(/Novice until you've done 5 deeds/)
+  expect(codex).toMatch(/takes 100 × L XP/)
+  expect(codex).toMatch(/\nLevel 3 · 200 XP after level 2 · 300 XP in all\n/)
+  for (const text of [help, codex]) {
+    expect(text).not.toMatch(/  /)
   }
 
-  // Asking for help earns nothing and leaves the hero as it was.
-  expect((await run('')).text).toMatch(/Level 1 Novice\n.* 0\/100 XP/)
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const short = await draw('help', help, surface)
+    for (const heading of ['Earning XP', 'Classes', 'Commands']) {
+      expect((await short.find({ type: 'Text', text: heading }))?.props?.weight).toBe('bold')
+    }
+    expect(await short.find({ type: 'Text', text: '15 XP' })).toBeUndefined()
+    expect(await short.find({ type: 'Text', text: 'Leveling' })).toBeUndefined()
+    expect(await short.find({ type: 'Text', text: /questlog:/ })).toBeUndefined()
+    await short.unmount()
+
+    const full = await draw('codex', codex, surface)
+    expect((await full.find({ type: 'Text', text: 'Leveling' }))?.props?.weight).toBe('bold')
+    expect(await full.find({ type: 'Text', text: '15 XP' })).toBeDefined()
+    expect(await full.find({ type: 'Text', text: '/questlog codex' })).toBeDefined()
+    await full.unmount()
+  }
+
+  // Reading the rules earns nothing and leaves the hero as it was.
+  expect(await run('')).toMatch(/Level 1 Novice\n.* 0\/100 XP/)
 })
 
 test('/questlog gallery opens a pane that animates', async ($, on) => {

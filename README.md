@@ -30,7 +30,9 @@ brings it back. A new conversation, a `/clear` or a forked session starts a
 new hero. The 500 most recently started heroes are kept.
 
 `/questlog` prints the character sheet as it stands, and `/questlog help`
-prints these rules. `/questlog rename <name>` gives this session's hero a
+explains how it plays without giving away any numbers; `/questlog codex`
+reveals them all: the XP for each deed, the class threshold and the
+leveling formula. `/questlog rename <name>` gives this session's hero a
 new name, up to 24 characters. `/questlog gallery` opens a pane showing
 off what a plugin can draw: colors, gradients, animation, borders, hover
 and pixel art. `/questlog status off` hides the status-line summary and

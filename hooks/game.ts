@@ -164,8 +164,10 @@ export const HELP_INTRO =
 export type HelpSection = { heading: string; note?: string; rows: string[][] }
 
 // The rules as /questlog help shows them, built from the tables above so
-// the two can't disagree.
-export function helpSections(): HelpSection[] {
+// the two can't disagree. The help keeps every number back, to be found by
+// playing; the codex reveals them: XP per deed, the class threshold and
+// the leveling formula.
+export function helpSections(isCodex: boolean): HelpSection[] {
   const toolsOf = (deed: Deed) => {
     const tools = Object.keys(DEEDS_BY_TOOL).filter(tool => DEEDS_BY_TOOL[tool] === deed)
     if (deed === 'lore') {
@@ -175,23 +177,46 @@ export function helpSections(): HelpSection[] {
     return deed === 'misc' ? 'other tools' : tools.join(', ')
   }
   const deeds = Object.keys(XP_PER_DEED) as Deed[]
+  const classed = Object.keys(CLASS_BY_DEED) as Exclude<Deed, 'misc'>[]
+  const named = classed.map(deed => DEED_NAMES[deed].toLowerCase())
+
+  const earning: HelpSection = isCodex
+    ? {
+        heading: 'Earning XP',
+        rows: [
+          ...deeds.map(deed => [DEED_NAMES[deed], `${XP_PER_DEED[deed]} XP`, toolsOf(deed)]),
+          ['Quest', `${XP_PER_QUEST} XP`, 'each finished turn'],
+          ['Fumble', `${XP_PER_FUMBLE} XP`, 'a tool call that errors, in place of its deed'],
+        ],
+      }
+    : {
+        heading: 'Earning XP',
+        note: `Your hero earns XP for everything Claude does: ${named.slice(0, -1).join(', ')} and ${named.at(-1)}, and every turn it finishes. How much each is worth is yours to find out, or to read in /questlog codex.`,
+        rows: [],
+      }
+  const levels = [2, 3, 4, 5, 6].map(level => [
+    `Level ${level}`,
+    `${xpForLevel(level) - xpForLevel(level - 1)} XP after level ${level - 1}`,
+    `${xpForLevel(level)} XP in all`,
+  ])
 
   return [
-    {
-      heading: 'Earning XP',
-      rows: [
-        ...deeds.map(deed => [DEED_NAMES[deed], `${XP_PER_DEED[deed]} XP`, toolsOf(deed)]),
-        ['Quest', `${XP_PER_QUEST} XP`, 'each finished turn'],
-        ['Fumble', `${XP_PER_FUMBLE} XP`, 'a tool call that errors, in place of its deed'],
-      ],
-    },
+    earning,
+    ...(isCodex
+      ? [
+          {
+            heading: 'Leveling',
+            note: 'Going from level L to level L+1 takes 100 × L XP, so reaching level L takes 50 × L × (L − 1) XP in all.',
+            rows: levels,
+          },
+        ]
+      : []),
     {
       heading: 'Classes',
-      note: `You're a Novice until you've done ${DEEDS_TO_EARN_CLASS} deeds. Then your class is whichever deed you have done most, and it can change as you go.`,
-      rows: (Object.keys(CLASS_BY_DEED) as Exclude<Deed, 'misc'>[]).map(deed => [
-        CLASS_BY_DEED[deed],
-        `most ${DEED_NAMES[deed].toLowerCase()}`,
-      ]),
+      note: isCodex
+        ? `You're a Novice until you've done ${DEEDS_TO_EARN_CLASS} deeds. Then your class is whichever deed you have done most, and it can change as you go.`
+        : "You start as a Novice. Once you've done enough deeds, your class is whichever deed you do most, and it can change as you go.",
+      rows: classed.map(deed => [CLASS_BY_DEED[deed], `most ${DEED_NAMES[deed].toLowerCase()}`]),
     },
     {
       heading: 'Commands',
@@ -199,7 +224,8 @@ export function helpSections(): HelpSection[] {
         ['/questlog', 'print the character sheet'],
         ['/questlog status [on|off]', 'show, hide or toggle the status line'],
         ['/questlog rename <name>', "rename this session's hero"],
-        ['/questlog help', 'show this help'],
+        ['/questlog help', 'how Questlog plays, without the numbers'],
+        ['/questlog codex', 'every number: XP per deed, the class threshold, leveling'],
         ['/questlog gallery', 'show off what the pane can draw'],
       ],
     },
@@ -208,10 +234,10 @@ export function helpSections(): HelpSection[] {
 
 // The help as plain text, for wherever it is not drawn styled: cells are
 // joined by '·' rather than padded, since a surface may collapse spaces.
-export function helpText(): string {
+export function helpText(isCodex: boolean): string {
   return [
     HELP_INTRO,
-    ...helpSections().flatMap(({ heading, note, rows }) => [
+    ...helpSections(isCodex).flatMap(({ heading, note, rows }) => [
       '',
       heading,
       ...(note === undefined ? [] : [note]),
