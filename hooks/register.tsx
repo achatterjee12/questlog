@@ -128,15 +128,18 @@ export const register: Register = on => {
   registerHelp(on)
 
   on('session.start', async ($, e, next) => {
-    // A reload or a resume runs this again: it picks up the hero this
-    // session already has.
-    await showStatus($, await loadHero($))
-
     await $.command.register({
       name: 'questlog',
       description: 'Show this session’s character sheet',
       argumentHint: '[help | codex | rename <name> | reset [confirm] | status [on|off]]',
     })
+
+    // A reload or a resume runs this again: it picks up the hero this
+    // session already has. A hero that can't be loaded must not keep the
+    // session from starting.
+    try {
+      await showStatus($, await loadHero($))
+    } catch {}
 
     return next(e)
   })
@@ -210,7 +213,10 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     // Only the main loop's finished turns count as quests.
     if (e.agentId === undefined && !e.isAborted) {
-      await gain($, afterQuest)
+      // Scoring must never get in the way of the turn finishing.
+      try {
+        await gain($, afterQuest)
+      } catch {}
     }
 
     return next(e)

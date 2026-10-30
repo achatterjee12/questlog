@@ -183,6 +183,29 @@ test('a resumed session gets its saved hero back', async ($, on) => {
   expect((store.get('hero:s1') as { xp: number }).xp).toBe(379)
 })
 
+test('a store that fails never stops the session', async ($, on) => {
+  const registered: string[] = []
+  on('store.get', () => {
+    throw new Error('store unavailable')
+  })
+  on('store.set', () => {
+    throw new Error('store unavailable')
+  })
+  on('ui.status', () => ({ value: undefined }))
+  on('session.id', () => ({ value: 's1' }))
+  on('command.register', (_, e) => (registered.push(e.name), { value: { command: e.name } }))
+  on('session.start', (_, e) => ({ cwd: e.cwd }))
+  on('tool.call', () => ({ result: { ok: true } }))
+  on('turn.complete', () => ({ text: '' }))
+
+  await $.session.start({ cwd: '/', surface: 'desktop', isInteractive: true })
+  expect(registered).toEqual(['questlog'])
+
+  // The tool's result and the finished turn pass through untouched.
+  expect((await $.tool.call({ tool: 'Bash', command: 'ls' })).result).toEqual({ ok: true })
+  await $.turn.complete({ answer: 'Done.', durationMs: 0, isAborted: false, turnId: 't1', reason: 'answer' })
+})
+
 test('a new session id, as after /clear, starts a new hero', async ($, on) => {
   const ids = { current: 's1' }
   const store = engine(on, { ids })
