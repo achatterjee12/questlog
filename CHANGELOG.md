@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1
+
+- The command that prints the character sheet no longer hands the
+  engine's `$` to code in another file, which the plugin directory can't
+  check: the sheet's own file starts its XP bar filling, from the XP the
+  sheet reports.
+- CI installs Claude Code from npm instead of piping a download into a
+  shell, and runs the plugin directory's strict checks.
+- The README says which command Questlog hooks and why.
+
 ## 1.0.0
 
 The first stable release, for the Claude Code community plugin marketplace.

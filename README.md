@@ -101,7 +101,9 @@ Questlog keeps everything on your machine, in Claude Code's local storage
 for plugins, and sends nothing anywhere: it makes no network requests and
 has no telemetry. Of each tool call it sees only the tool's name and
 whether it failed, never what the tool was given or returned, and it never
-changes what a tool call does or which calls are allowed.
+changes what a tool call does or which calls are allowed. Of commands, it
+hooks only its own `/questlog`, to answer it and start the character
+sheet's XP bar filling; every other command runs untouched.
 
 What it saves:
 
