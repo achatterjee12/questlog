@@ -14,7 +14,7 @@ import {
   summary,
 } from './game'
 import { registerHelp } from './help'
-import { registerSheet, sheetText, startFill } from './sheet'
+import { registerSheet, sheetText } from './sheet'
 
 // The live copy of the hero. It lasts only as long as the process,
 // so every change is also saved to the store under the session's id, which
@@ -193,7 +193,6 @@ export const register: Register = on => {
     const shown = await $.store.get(shownKey(current.sessionId))
     const from = typeof shown === 'number' ? Math.min(shown, current.xp) : 0
     await $.store.set(shownKey(current.sessionId), current.xp)
-    await startFill($, from, current.xp)
 
     return { text: sheetText(current, current.xp - from) }
   })

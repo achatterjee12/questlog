@@ -72,7 +72,7 @@ function stopTicking() {
 
 // Starts the fill for the sheet about to be printed, from the XP the last
 // sheet showed to the XP now, and ticks until it is over.
-export async function startFill($: EngineInterface, from: number, to: number) {
+async function startFill($: EngineInterface, from: number, to: number) {
   stopTicking()
   const startTick = await read($, tick)
   const ticks = Math.ceil(fillDuration(from, to) / TICK_MS)
@@ -158,6 +158,19 @@ export function registerSheet(on: On) {
   stopTicking()
   fill = undefined
   seenRows.clear()
+
+  // When /questlog prints a sheet, its bar fills from the XP the last sheet
+  // showed, which the sheet's own text tells: the XP now, less the gain.
+  on('command.run', { command: 'questlog' }, async ($, e, next) => {
+    const ran = await next(e)
+    const sheet = ran.text === undefined ? null : parseSheet(ran.text)
+    if (sheet !== null && sheet.gain !== undefined) {
+      const to = xpForLevel(sheet.level) + sheet.gained
+      await startFill($, to - sheet.gain, to)
+    }
+
+    return ran
+  })
 
   on('ui.render', { component: 'CommandOutput', props: { command: 'questlog' } }, async ($, e, next) => {
     const sheet = e.props.isErrored ? null : parseSheet(e.props.text)
