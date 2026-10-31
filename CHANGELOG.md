@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- plugin.json drops `types`, a field for plugins that add to `$` for
+  others to use. Questlog adds nothing there, and released Claude Code
+  builds don't read the field.
+
 ## 1.0.1
 
 - The command that prints the character sheet no longer hands the
