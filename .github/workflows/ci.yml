@@ -12,13 +12,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install Claude Code
-        run: |
-          curl -fsSL https://claude.ai/install.sh | bash
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        run: npm install -g @anthropic-ai/claude-code
 
       - name: Validate the plugin
-        run: claude plugin validate .
+        run: claude plugin validate --profile directory --strict .
 
       - name: Run the tests
         run: claude plugin test .
