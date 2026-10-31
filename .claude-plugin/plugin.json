@@ -1,7 +1,7 @@
 {
   "name": "questlog",
   "displayName": "Questlog",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Turns each Claude Code session into an RPG character that earns XP, levels up and picks a class from how you play",
   "author": { "name": "achatterjee12", "url": "https://github.com/achatterjee12" },
   "homepage": "https://github.com/achatterjee12/questlog",

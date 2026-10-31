@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+
+- The README reads as a whole where its images aren't shown, as in the
+  plugin directory's preview: the line before the screenshots is a full
+  sentence, and the screenshots no longer sit in a table with headings.
+
 ## 1.0.2
 
 - plugin.json drops `types`, a field for plugins that add to `$` for
