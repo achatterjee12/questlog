@@ -6,6 +6,21 @@ what the session spends its time doing. `/questlog` prints a colored
 character sheet into the conversation, and the status line keeps a
 one-line summary.
 
+![/questlog printing a character sheet whose XP bar fills, levels the hero up to 3 and fills again](docs/recording-dark.gif)
+
+The sheet follows your theme:
+
+<table>
+  <tr>
+    <th>Dark</th>
+    <th>Light</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshot-dark.png" alt="A level 2 Adventurer's character sheet in a dark terminal" width="400"></td>
+    <td><img src="docs/screenshot-light.png" alt="A level 8 Wizard's character sheet in a light terminal" width="400"></td>
+  </tr>
+</table>
+
 ## How it plays
 
 Every tool Claude uses is a deed that earns your hero XP: crafting when it
